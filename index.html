@@ -15,10 +15,10 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪸</text></svg>" id="faviconFallback" sizes="any">
 <style>
   :root{
-    --bg:#0b0e14; --panel:#11151f; --panel2:#161c29; --line:#232b3a;
-    --text:#e8ecf4; --muted:#8b94a7;
-    --accent:#5eead4; --accent2:#60a5fa;
-    --good:#7bd88f; --bad:#ff7a7a; --warn:#ffb454; --cyan:#6bd6e8; --radius:14px;
+    --bg:#fdf6ec; --panel:#ffffff; --panel2:#fef1de; --line:#f0dcb8;
+    --text:#3a2c1a; --muted:#93805f;
+    --accent:#ff9933; --accent2:#e2662a;
+    --good:#4caf7d; --bad:#e2564a; --warn:#e08a1e; --cyan:#3b9c8f; --radius:14px;
   }
   *{box-sizing:border-box}
   html,body{height:100%}
@@ -27,27 +27,28 @@
     font-size:14px;display:flex;flex-direction:column;overflow:hidden}
   .mono{font-family:ui-monospace,Menlo,Consolas,"Liberation Mono",monospace}
   ::-webkit-scrollbar{width:10px;height:10px}
-  ::-webkit-scrollbar-thumb{background:#2a3142;border-radius:6px;border:2px solid var(--panel)}
+  ::-webkit-scrollbar-thumb{background:#e6c98e;border-radius:6px;border:2px solid var(--panel)}
   ::-webkit-scrollbar-track{background:transparent}
 
   header{display:flex;align-items:baseline;gap:14px;padding:12px 18px 10px;
-    border-bottom:1px solid var(--line);background:linear-gradient(180deg,#10151f,#0b0e14)}
+    border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fffaf2,#fdf6ec)}
   .logo{font-weight:800;font-size:19px;letter-spacing:.14em;
     background:linear-gradient(90deg,var(--accent),var(--accent2));
     -webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap}
   .logo .mark{-webkit-text-fill-color:var(--accent)}
   .tagline{color:var(--muted);font-size:12px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   footer{padding:7px 16px;border-top:1px solid var(--line);color:var(--muted);
-    font-size:11.5px;text-align:center;background:#0d1119;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    font-size:11.5px;text-align:center;background:#fff8ee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
   main.layout{flex:1;display:grid;grid-template-columns:312px 1fr 312px;gap:12px;padding:12px;min-height:0}
   .side{display:flex;flex-direction:column;gap:12px;overflow-y:auto;min-height:0;padding-right:2px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px;flex:none}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px;flex:none;
+    box-shadow:0 2px 10px rgba(200,150,60,.07)}
   .card h2{margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
-    color:#aab3c5;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+    color:#a9793a;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
   .card h2 small{color:var(--muted);font-weight:500;letter-spacing:.06em;text-transform:none}
   .hint{color:var(--muted);font-size:11.5px;line-height:1.5;margin:8px 0 0}
-  .hint b{color:#c6cede}
+  .hint b{color:#6b4a1f}
 
   button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer}
   .btn{display:block;width:100%;padding:9px 10px;border-radius:10px;text-align:center;
@@ -55,28 +56,28 @@
     transition:border-color .15s,transform .05s}
   .btn:hover:not(:disabled){border-color:#3a4459}
   .btn:active:not(:disabled){transform:translateY(1px)}
-  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0a1216;border:none}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none}
   .btn + .btn{margin-top:8px}
 
-  .seg{display:flex;background:#0d1119;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;flex-wrap:wrap}
+  .seg{display:flex;background:#fff8ee;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;flex-wrap:wrap}
   .seg button{flex:1;padding:7px 4px;border-radius:7px;font-size:11.5px;font-weight:600;color:var(--muted);
     transition:background .15s,color .15s;white-space:nowrap;min-width:44px}
   .seg button:hover{color:var(--text)}
-  .seg button.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0a1216}
+  .seg button.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
   .chip{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid rgba(255,255,255,.3);vertical-align:-2px}
 
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
   .row2 label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--muted);
     letter-spacing:.06em;text-transform:uppercase}
-  input[type=number]{width:100%;background:#0d1119;border:1px solid var(--line);border-radius:8px;
+  input[type=number]{width:100%;background:#fff8ee;border:1px solid var(--line);border-radius:8px;
     color:var(--text);padding:7px 9px;font:inherit;font-family:ui-monospace,Menlo,monospace}
   input[type=number]:focus{outline:none;border-color:var(--accent)}
 
   .src{display:flex;gap:10px;margin-top:11px;align-items:flex-start;
-    background:#0d1119;border:1px dashed #2c3547;border-radius:10px;padding:9px}
+    background:#fff8ee;border:1px dashed #e6c98e;border-radius:10px;padding:9px}
   .src img{width:58px;height:58px;object-fit:cover;border-radius:8px;border:1px solid var(--line);
-    background:repeating-conic-gradient(#22293a 0 25%,#171d2a 0 50%) 0 0/12px 12px}
-  .src .meta{font-size:11.5px;line-height:1.45;color:#c6cede;word-break:break-all}
+    background:repeating-conic-gradient(#f3e2bd 0 25%,#fbf1de 0 50%) 0 0/12px 12px}
+  .src .meta{font-size:11.5px;line-height:1.45;color:#6b4a1f;word-break:break-all}
 
   .slider-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);
     letter-spacing:.06em;text-transform:uppercase;margin-top:10px}
@@ -91,15 +92,16 @@
 
   .switch{display:flex;align-items:center;gap:10px;padding:4px 0;cursor:pointer;font-size:13px;user-select:none}
   .switch input{display:none}
-  .switch span.tg{width:32px;height:18px;border-radius:9px;background:#232b3a;position:relative;transition:background .18s;flex:none}
+  .switch span.tg{width:32px;height:18px;border-radius:9px;background:#ecdcb8;position:relative;transition:background .18s;flex:none}
   .switch span.tg::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
-    background:#8b94a7;transition:left .18s,background .18s}
+    background:#fff;transition:left .18s,background .18s}
   .switch input:checked + span.tg{background:linear-gradient(135deg,var(--accent),var(--accent2))}
-  .switch input:checked + span.tg::after{left:16px;background:#0a1216}
+  .switch input:checked + span.tg::after{left:16px;background:#fff}
 
   .stage{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
   .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
-    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px}
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px;
+    box-shadow:0 2px 10px rgba(200,150,60,.07)}
   .transport{display:flex;align-items:center;gap:7px}
   .tbtn{width:38px;height:38px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);
     font-size:14px;color:var(--text);display:flex;align-items:center;justify-content:center;
@@ -107,14 +109,14 @@
   .tbtn:hover:not(:disabled){border-color:#414c63}
   .tbtn:active:not(:disabled){transform:scale(.93)}
   .tbtn:disabled{opacity:.32;cursor:default}
-  .tbtn.play{width:48px;height:48px;font-size:18px;border:none;color:#0a1216;
+  .tbtn.play{width:48px;height:48px;font-size:18px;border:none;color:#fff;
     background:linear-gradient(135deg,var(--accent),var(--accent2))}
   .tbtn.play.playing{animation:pulse 1.6s ease-in-out infinite}
-  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(94,234,212,.4)}50%{box-shadow:0 0 0 9px rgba(94,234,212,0)}}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,153,51,.4)}50%{box-shadow:0 0 0 9px rgba(255,153,51,0)}}
   .tbtn.attn{border-color:var(--accent);color:var(--accent);animation:attn 1.5s ease-in-out infinite}
-  @keyframes attn{0%,100%{box-shadow:0 0 0 0 rgba(94,234,212,.35)}50%{box-shadow:0 0 0 7px rgba(94,234,212,0)}}
+  @keyframes attn{0%,100%{box-shadow:0 0 0 0 rgba(255,153,51,.35)}50%{box-shadow:0 0 0 7px rgba(255,153,51,0)}}
   #genBadge,#phaseChip{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;letter-spacing:.1em;
-    background:#0d1119;border:1px solid var(--line);padding:7px 11px;border-radius:999px;text-align:center;white-space:nowrap}
+    background:#fff8ee;border:1px solid var(--line);padding:7px 11px;border-radius:999px;text-align:center;white-space:nowrap}
   #genBadge{color:var(--accent);min-width:78px}
   #phaseChip{min-width:110px;transition:color .4s,border-color .4s}
 
@@ -123,27 +125,16 @@
   #board{position:absolute;inset:0;display:block;touch-action:none}
   #board.grab{cursor:grab}#board.grabbing{cursor:grabbing}
   .hud{position:absolute;left:12px;bottom:10px;pointer-events:none;font-family:ui-monospace,Menlo,monospace;
-    font-size:11px;color:#aeb7c9;background:rgba(10,13,20,.74);border:1px solid rgba(255,255,255,.07);
+    font-size:11px;color:#4a3a22;background:rgba(255,250,240,.85);border:1px solid rgba(180,140,60,.15);
     padding:4px 9px;border-radius:8px;backdrop-filter:blur(6px)}
   .banner{position:absolute;top:10px;left:12px;pointer-events:none;font-size:11px;letter-spacing:.08em;
     padding:5px 12px;border-radius:999px;display:none;z-index:4}
-  #origBanner{color:#ffd9a1;background:rgba(38,24,8,.82);border:1px solid rgba(255,180,84,.4)}
-  #maskBanner{color:var(--warn);background:rgba(40,28,6,.82);border:1px solid rgba(255,180,84,.4)}
-  #heatLegend{position:absolute;right:14px;top:12px;display:none;align-items:center;gap:8px;z-index:4;
-    font-size:10.5px;color:var(--muted);background:rgba(10,13,20,.75);padding:6px 10px;border-radius:999px;
-    border:1px solid rgba(255,255,255,.08)}
-  #heatLegend .bar{width:110px;height:8px;border-radius:4px;
-    background:linear-gradient(90deg,hsl(240,85%,55%),hsl(180,85%,50%),hsl(90,85%,50%),hsl(40,95%,55%),hsl(0,90%,55%))}
-  #legendChips{position:absolute;right:14px;top:12px;display:none;flex-direction:column;gap:6px;z-index:4;
-    font-size:10.5px;color:#c6cede;background:rgba(10,13,20,.78);padding:8px 11px;border-radius:10px;
-    border:1px solid rgba(255,255,255,.08)}
-  .lg-row{display:flex;align-items:center;gap:7px}
-  .lg-sw{width:13px;height:13px;border-radius:3px;border:1px solid rgba(255,255,255,.25)}
+  #origBanner{color:#8a4a12;background:rgba(255,235,205,.92);border:1px solid rgba(230,140,40,.4)}
 
   #phaseTitle{font-size:15px;font-weight:800;letter-spacing:.08em;margin:0}
   #phaseSub{color:var(--muted);font-size:11.5px;margin-top:4px;line-height:1.5}
   #reconBarWrap{margin-top:10px;display:none}
-  #reconBar{height:8px;border-radius:4px;background:#232b3a;overflow:hidden}
+  #reconBar{height:8px;border-radius:4px;background:#ecdcb8;overflow:hidden}
   #reconBar i{display:block;height:100%;width:0%;
     background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .12s linear}
 
@@ -153,9 +144,9 @@
   dl.kv dt{color:var(--muted);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;align-self:center}
   dl.kv dd{margin:0;text-align:right;font-size:12.5px}
   .ins-head{display:flex;gap:11px;align-items:center;margin-bottom:10px}
-  #insSwatch,#insOSwatch{width:52px;height:52px;border-radius:10px;border:1px dashed #39445c;flex:none;
-    background:repeating-conic-gradient(#181f2e 0 25%,#10141d 0 50%) 0 0/12px 12px}
-  .meter{height:7px;border-radius:4px;background:#232b3a;overflow:hidden;min-width:100px}
+  #insSwatch,#insOSwatch{width:52px;height:52px;border-radius:10px;border:1px dashed #d9bd85;flex:none;
+    background:repeating-conic-gradient(#f3e2bd 0 25%,#fbf1de 0 50%) 0 0/12px 12px}
+  .meter{height:7px;border-radius:4px;background:#ecdcb8;overflow:hidden;min-width:100px}
   .meter i{display:block;height:100%;border-radius:4px;transition:width .15s}
   #mImp i{background:linear-gradient(90deg,hsl(240,85%,55%),hsl(0,90%,55%))}
   #mFade i{background:linear-gradient(90deg,#ff6b6b,var(--warn))}
@@ -165,7 +156,7 @@
 
   #toasts{position:fixed;bottom:44px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;
     align-items:center;gap:8px;z-index:99;pointer-events:none}
-  .toast{background:#1b2230;border:1px solid #39445c;color:var(--text);font-size:12.5px;
+  .toast{background:#fff8ee;border:1px solid #e6c98e;color:var(--text);font-size:12.5px;
     padding:9px 16px;border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.5);
     opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;max-width:80vw}
   .toast.show{opacity:1;transform:translateY(0)}
@@ -204,29 +195,6 @@
           <div class="hint">Used only to initialize cells &amp; analyze structure. Never drawn beneath the simulation.</div>
         </div>
       </div>
-    </section>
-
-    <section class="card">
-      <h2>Grid</h2>
-      <div class="seg" id="dimPresets">
-        <button data-v="16">16</button><button data-v="24">24</button><button data-v="32" class="active">32</button>
-        <button data-v="48">48</button><button data-v="64">64</button><button data-v="96">96</button><button data-v="128">128</button>
-      </div>
-      <div class="row2">
-        <label>Rows <input type="number" id="inRows" min="8" max="192" value="32"></label>
-        <label>Cols <input type="number" id="inCols" min="8" max="192" value="32"></label>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Sampling <small>likeness</small></h2>
-      <div class="slider-label"><span>Detail clarity</span></div>
-      <div class="slider-row">
-        <input type="range" id="inClar" min="0" max="100" value="65">
-        <output id="clarOut">65%</output>
-      </div>
-      <label class="switch"><input type="checkbox" id="inAspect" checked><span class="tg"></span>Match image aspect</label>
-      <p class="hint">Clarity pulls each cell toward its most <b>distinctive pixel</b> — eyes, lips and outlines stay visible instead of averaging into skin tone. Averages are computed in <b>linear light</b> for truer tones.<br><br><b>Photos / portraits:</b> use <b>96–128</b> grid + clarity <b>60–85%</b>, and turn on <b>Smooth cell rendering</b> below.</p>
     </section>
 
     <section class="card">
@@ -324,8 +292,6 @@
       <div class="seg" id="viewSeg" style="flex:0 1 auto">
         <button data-v="sim" class="active">SIMULATION</button>
         <button data-v="gen0">GEN 0</button>
-        <button data-v="mask">MASK</button>
-        <button data-v="heat">HEATMAP</button>
         <button data-v="original">ORIGINAL</button>
       </div>
       <div class="transport" style="margin-left:auto">
@@ -346,12 +312,6 @@
     <div class="canvas-wrap" id="canvasWrap">
       <canvas id="board"></canvas>
       <div id="origBanner" class="banner">ORIGINAL — COMPARISON ONLY · SIM UNAFFECTED</div>
-      <div id="maskBanner" class="banner">STRUCTURAL MASK — <span style="color:var(--warn)">■ LOCKED SKELETON</span> · <span style="color:#7f92b8">■ EVOLVING INTERIOR</span></div>
-      <div id="heatLegend"><span>0.0</span><div class="bar"></div><span>1.0 · vital</span></div>
-      <div id="legendChips">
-        <div class="lg-row"><span class="lg-sw" style="background:var(--warn)"></span>LOCKED STRUCTURAL CELL</div>
-        <div class="lg-row"><span class="lg-sw" style="background:#33415e"></span>EVOLVING INTERIOR CELL</div>
-      </div>
       <div class="hud" id="hud">—</div>
     </div>
   </section>
@@ -461,8 +421,8 @@ function toast(msg,ms=2600){
 
 /* ═════════════════ state ═════════════════ */
 const S={
-  rows:32, cols:32,
-  clarity:0.65, aspect:true,
+  rows:128, cols:128,
+  clarity:0, aspect:true,
   structPct:0.35, sens:1.0, survival:0.60,
   fadeStep:0.25, gap:0, gridAlpha:0.14, bg:'dark', smooth:false,
   speed:12, recMode:'outside', recFill:'memory', recMult:1.0, shimmer:true,
@@ -784,7 +744,7 @@ function setSource(img,name){
   $('#srcMeta').textContent=`${img.width}×${img.height}px · ${name}`;
   if(S.aspect)setDims(S.rows,aspectCols(S.rows));
   else rebuildAll(true);
-  toast(`Loaded “${name}” — tip: grid 96–128 + “Smooth cell rendering” shines for photos`,3400);
+  toast(`Loaded “${name}”`,3400);
 }
 
 function aspectCols(rows){
@@ -1366,27 +1326,6 @@ function paintCellsSmooth(g,cs,ox,oy,W,H,buf,ghosts){
   g.imageSmoothingEnabled=false;
 }
 
-function paintMask(g,cs,ox,oy,W,H){
-  const R=S.rows,C=S.cols;
-  g.fillStyle='#0d1119';g.fillRect(ox,oy,C*cs,R*cs);
-  const c0=clamp(Math.floor(-ox/cs),0,C),c1=clamp(Math.ceil((W-ox)/cs),0,C);
-  const r0=clamp(Math.floor(-oy/cs),0,R),r1=clamp(Math.ceil((H-oy)/cs),0,R);
-  for(let r=r0;r<r1;r++)for(let c=c0;c<c1;c++){
-    const i=r*C+c;
-    g.fillStyle=lock[i]?'#ffb454':'#33415e';
-    g.fillRect(ox+c*cs,oy+r*cs,cs+0.04,cs+0.04);
-  }
-}
-function paintHeat(g,cs,ox,oy,W,H){
-  const R=S.rows,C=S.cols;
-  g.fillStyle='#0d1119';g.fillRect(ox,oy,C*cs,R*cs);
-  const c0=clamp(Math.floor(-ox/cs),0,C),c1=clamp(Math.ceil((W-ox)/cs),0,C);
-  const r0=clamp(Math.floor(-oy/cs),0,R),r1=clamp(Math.ceil((H-oy)/cs),0,R);
-  for(let r=r0;r<r1;r++)for(let c=c0;c<c1;c++){
-    g.fillStyle=heatColor(importance[r*C+c]);
-    g.fillRect(ox+c*cs,oy+r*cs,cs+0.04,cs+0.04);
-  }
-}
 function label(g,txt,x,y,size,align='center'){
   g.font=`700 ${size}px ui-monospace,Menlo,monospace`;
   g.textAlign=align;g.textBaseline='middle';
@@ -1397,12 +1336,9 @@ function label(g,txt,x,y,size,align='center'){
 function render(){
   const dpr=window.devicePixelRatio||1,W=wrap.clientWidth,H=wrap.clientHeight;
   ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.fillStyle='#0b0e14';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#fdf6ec';ctx.fillRect(0,0,W,H);
 
   $('#origBanner').style.display=S.view==='original'?'block':'none';
-  $('#maskBanner').style.display=S.view==='mask'?'block':'none';
-  $('#heatLegend').style.display=S.view==='heat'?'flex':'none';
-  $('#legendChips').style.display=S.view==='mask'&&view.scale>=7?'flex':'none';
 
   if(S.view==='original'){
     if(srcImg){
@@ -1419,14 +1355,12 @@ function render(){
   const cs=view.scale,bx=view.x,by=view.y;
   const painter=S.smooth?paintCellsSmooth:paintCells;
   if(S.view==='sim')painter(ctx,cs,bx,by,W,H,cur,true);
-  else if(S.view==='gen0')painter(ctx,cs,bx,by,W,H,gen0Snap,false);
-  else if(S.view==='mask')paintMask(ctx,cs,bx,by,W,H);
-  else paintHeat(ctx,cs,bx,by,W,H);
+  else painter(ctx,cs,bx,by,W,H,gen0Snap,false);
 
   ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.15)';
   ctx.strokeRect(bx-.5,by-.5,S.cols*cs+1,S.rows*cs+1);
 
-  if($('#dbgGrid').checked&&cs>=4&&S.view!=='heat'){
+  if($('#dbgGrid').checked&&cs>=4){
     ctx.strokeStyle=S.bg==='white'
       ?`rgba(10,14,22,${S.gridAlpha})`
       :`rgba(190,205,235,${S.gridAlpha})`;
@@ -1585,7 +1519,6 @@ function bindSeg(el,fn){
 }
 function updateSndStat(){$('#sndStat').textContent='engine: '+AudioFX.status();}
 
-bindSeg($('#dimPresets'),v=>setDims(+v, S.aspect?aspectCols(+v):+v));
 bindSeg($('#bgSeg'),v=>{S.bg=v;needRender=true;});
 bindSeg($('#viewSeg'),v=>{S.view=v;needRender=true;
   if(v==='original')toast('Comparison view — simulation untouched');});
@@ -1605,28 +1538,11 @@ bindSeg($('#recSeg'),v=>{
      :'Cells restore row by row');
 });
 
-$('#inRows').addEventListener('change',e=>setDims(+e.target.value,S.cols));
-$('#inCols').addEventListener('change',e=>setDims(S.rows,+e.target.value));
 function setDims(r,c){
   r=clamp(Math.round(r)||16,8,192);c=clamp(Math.round(c)||16,8,192);
   S.rows=r;S.cols=c;
-  $('#inRows').value=r;$('#inCols').value=c;
-  const pc=$$('#dimPresets button').find(b=>+b.dataset.v===r&&r===c);
-  $$('#dimPresets button').forEach(b=>b.classList.toggle('active',b===pc));
   rebuildAll(true);
 }
-$('#inAspect').addEventListener('change',e=>{
-  S.aspect=e.target.checked;
-  if(S.aspect)setDims(S.rows,aspectCols(S.rows));
-});
-$('#inClar').addEventListener('input',e=>{
-  S.clarity=+e.target.value/100;
-  $('#clarOut').textContent=e.target.value+'%';
-});
-$('#inClar').addEventListener('change',()=>{
-  rebuildAll(true);
-  toast(`Detail clarity @ ${(S.clarity*100)|0}% — resampled, reset to Gen 0`);
-});
 $('#inStruct').addEventListener('input',e=>{
   S.structPct=+e.target.value/100;
   $('#structOut').textContent=e.target.value+'%';
@@ -1744,9 +1660,7 @@ $('#expPng').addEventListener('click',()=>{
   const g=ec.getContext('2d');
   if(S.view==='original'&&srcImg){
     g.drawImage(srcImg,0,0,ec.width,ec.height);
-  }else if(S.view==='mask')paintMask(g,cell,0,0,ec.width,ec.height);
-  else if(S.view==='heat')paintHeat(g,cell,0,0,ec.width,ec.height);
-  else (S.smooth?paintCellsSmooth:paintCells)(g,cell,0,0,ec.width,ec.height,S.view==='gen0'?gen0Snap:cur,S.view==='sim');
+  }else (S.smooth?paintCellsSmooth:paintCells)(g,cell,0,0,ec.width,ec.height,S.view==='gen0'?gen0Snap:cur,S.view==='sim');
   ec.toBlob(b=>{
     const u=URL.createObjectURL(b),a=document.createElement('a');
     a.href=u;a.download=`image-evolution-gen${gen}.png`;a.click();
