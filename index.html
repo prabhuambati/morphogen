@@ -1,0 +1,1780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IMAGE EVOLUTION — structure remains, interior evolves</title>
+<meta name="description" content="Upload an image and watch it dissolve and reform through a structure-preserving cellular automaton — the skeleton holds, the interior evolves, and its own colors rebuild it.">
+<meta property="og:title" content="Image Evolution">
+<meta property="og:description" content="A living Game-of-Life reconstruction of your image — structure remains, interior evolves.">
+<meta property="og:image" content="logo.png">
+<meta property="og:type" content="website">
+<!-- Favicon: place a file named logo.png next to this HTML file on the server.
+     Falls back to the coral emoji icon automatically if logo.png is missing. -->
+<link rel="icon" id="favicon" type="image/png" href="logo.png">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪸</text></svg>" id="faviconFallback" sizes="any">
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#11151f; --panel2:#161c29; --line:#232b3a;
+    --text:#e8ecf4; --muted:#8b94a7;
+    --accent:#5eead4; --accent2:#60a5fa;
+    --good:#7bd88f; --bad:#ff7a7a; --warn:#ffb454; --cyan:#6bd6e8; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"Inter","SF Pro Text",system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:14px;display:flex;flex-direction:column;overflow:hidden}
+  .mono{font-family:ui-monospace,Menlo,Consolas,"Liberation Mono",monospace}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#2a3142;border-radius:6px;border:2px solid var(--panel)}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  header{display:flex;align-items:baseline;gap:14px;padding:12px 18px 10px;
+    border-bottom:1px solid var(--line);background:linear-gradient(180deg,#10151f,#0b0e14)}
+  .logo{font-weight:800;font-size:19px;letter-spacing:.14em;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap}
+  .logo .mark{-webkit-text-fill-color:var(--accent)}
+  .tagline{color:var(--muted);font-size:12px;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  footer{padding:7px 16px;border-top:1px solid var(--line);color:var(--muted);
+    font-size:11.5px;text-align:center;background:#0d1119;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  main.layout{flex:1;display:grid;grid-template-columns:312px 1fr 312px;gap:12px;padding:12px;min-height:0}
+  .side{display:flex;flex-direction:column;gap:12px;overflow-y:auto;min-height:0;padding-right:2px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px;flex:none}
+  .card h2{margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+    color:#aab3c5;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .card h2 small{color:var(--muted);font-weight:500;letter-spacing:.06em;text-transform:none}
+  .hint{color:var(--muted);font-size:11.5px;line-height:1.5;margin:8px 0 0}
+  .hint b{color:#c6cede}
+
+  button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer}
+  .btn{display:block;width:100%;padding:9px 10px;border-radius:10px;text-align:center;
+    background:var(--panel2);border:1px solid var(--line);font-weight:600;font-size:13px;
+    transition:border-color .15s,transform .05s}
+  .btn:hover:not(:disabled){border-color:#3a4459}
+  .btn:active:not(:disabled){transform:translateY(1px)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0a1216;border:none}
+  .btn + .btn{margin-top:8px}
+
+  .seg{display:flex;background:#0d1119;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;flex-wrap:wrap}
+  .seg button{flex:1;padding:7px 4px;border-radius:7px;font-size:11.5px;font-weight:600;color:var(--muted);
+    transition:background .15s,color .15s;white-space:nowrap;min-width:44px}
+  .seg button:hover{color:var(--text)}
+  .seg button.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#0a1216}
+  .chip{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid rgba(255,255,255,.3);vertical-align:-2px}
+
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}
+  .row2 label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--muted);
+    letter-spacing:.06em;text-transform:uppercase}
+  input[type=number]{width:100%;background:#0d1119;border:1px solid var(--line);border-radius:8px;
+    color:var(--text);padding:7px 9px;font:inherit;font-family:ui-monospace,Menlo,monospace}
+  input[type=number]:focus{outline:none;border-color:var(--accent)}
+
+  .src{display:flex;gap:10px;margin-top:11px;align-items:flex-start;
+    background:#0d1119;border:1px dashed #2c3547;border-radius:10px;padding:9px}
+  .src img{width:58px;height:58px;object-fit:cover;border-radius:8px;border:1px solid var(--line);
+    background:repeating-conic-gradient(#22293a 0 25%,#171d2a 0 50%) 0 0/12px 12px}
+  .src .meta{font-size:11.5px;line-height:1.45;color:#c6cede;word-break:break-all}
+
+  .slider-label{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);
+    letter-spacing:.06em;text-transform:uppercase;margin-top:10px}
+  .slider-label:first-child{margin-top:0}
+  .slider-row{display:flex;align-items:center;gap:12px;margin-top:6px}
+  .slider-row output{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--accent);min-width:56px;text-align:right}
+  input[type=range]{flex:1;appearance:none;-webkit-appearance:none;height:5px;border-radius:3px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));outline:none}
+  input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:#fff;border:3px solid var(--accent);cursor:pointer;box-shadow:0 1px 5px rgba(0,0,0,.5)}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;border-radius:50%;background:#fff;border:3px solid var(--accent);cursor:pointer}
+
+  .switch{display:flex;align-items:center;gap:10px;padding:4px 0;cursor:pointer;font-size:13px;user-select:none}
+  .switch input{display:none}
+  .switch span.tg{width:32px;height:18px;border-radius:9px;background:#232b3a;position:relative;transition:background .18s;flex:none}
+  .switch span.tg::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:#8b94a7;transition:left .18s,background .18s}
+  .switch input:checked + span.tg{background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .switch input:checked + span.tg::after{left:16px;background:#0a1216}
+
+  .stage{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
+  .toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:8px 12px}
+  .transport{display:flex;align-items:center;gap:7px}
+  .tbtn{width:38px;height:38px;border-radius:50%;background:var(--panel2);border:1px solid var(--line);
+    font-size:14px;color:var(--text);display:flex;align-items:center;justify-content:center;
+    transition:border-color .15s,transform .05s}
+  .tbtn:hover:not(:disabled){border-color:#414c63}
+  .tbtn:active:not(:disabled){transform:scale(.93)}
+  .tbtn:disabled{opacity:.32;cursor:default}
+  .tbtn.play{width:48px;height:48px;font-size:18px;border:none;color:#0a1216;
+    background:linear-gradient(135deg,var(--accent),var(--accent2))}
+  .tbtn.play.playing{animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(94,234,212,.4)}50%{box-shadow:0 0 0 9px rgba(94,234,212,0)}}
+  .tbtn.attn{border-color:var(--accent);color:var(--accent);animation:attn 1.5s ease-in-out infinite}
+  @keyframes attn{0%,100%{box-shadow:0 0 0 0 rgba(94,234,212,.35)}50%{box-shadow:0 0 0 7px rgba(94,234,212,0)}}
+  #genBadge,#phaseChip{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;letter-spacing:.1em;
+    background:#0d1119;border:1px solid var(--line);padding:7px 11px;border-radius:999px;text-align:center;white-space:nowrap}
+  #genBadge{color:var(--accent);min-width:78px}
+  #phaseChip{min-width:110px;transition:color .4s,border-color .4s}
+
+  .canvas-wrap{position:relative;flex:1;min-height:380px;border-radius:var(--radius);
+    border:1px solid var(--line);overflow:hidden;background:var(--bg)}
+  #board{position:absolute;inset:0;display:block;touch-action:none}
+  #board.grab{cursor:grab}#board.grabbing{cursor:grabbing}
+  .hud{position:absolute;left:12px;bottom:10px;pointer-events:none;font-family:ui-monospace,Menlo,monospace;
+    font-size:11px;color:#aeb7c9;background:rgba(10,13,20,.74);border:1px solid rgba(255,255,255,.07);
+    padding:4px 9px;border-radius:8px;backdrop-filter:blur(6px)}
+  .banner{position:absolute;top:10px;left:12px;pointer-events:none;font-size:11px;letter-spacing:.08em;
+    padding:5px 12px;border-radius:999px;display:none;z-index:4}
+  #origBanner{color:#ffd9a1;background:rgba(38,24,8,.82);border:1px solid rgba(255,180,84,.4)}
+  #maskBanner{color:var(--warn);background:rgba(40,28,6,.82);border:1px solid rgba(255,180,84,.4)}
+  #heatLegend{position:absolute;right:14px;top:12px;display:none;align-items:center;gap:8px;z-index:4;
+    font-size:10.5px;color:var(--muted);background:rgba(10,13,20,.75);padding:6px 10px;border-radius:999px;
+    border:1px solid rgba(255,255,255,.08)}
+  #heatLegend .bar{width:110px;height:8px;border-radius:4px;
+    background:linear-gradient(90deg,hsl(240,85%,55%),hsl(180,85%,50%),hsl(90,85%,50%),hsl(40,95%,55%),hsl(0,90%,55%))}
+  #legendChips{position:absolute;right:14px;top:12px;display:none;flex-direction:column;gap:6px;z-index:4;
+    font-size:10.5px;color:#c6cede;background:rgba(10,13,20,.78);padding:8px 11px;border-radius:10px;
+    border:1px solid rgba(255,255,255,.08)}
+  .lg-row{display:flex;align-items:center;gap:7px}
+  .lg-sw{width:13px;height:13px;border-radius:3px;border:1px solid rgba(255,255,255,.25)}
+
+  #phaseTitle{font-size:15px;font-weight:800;letter-spacing:.08em;margin:0}
+  #phaseSub{color:var(--muted);font-size:11.5px;margin-top:4px;line-height:1.5}
+  #reconBarWrap{margin-top:10px;display:none}
+  #reconBar{height:8px;border-radius:4px;background:#232b3a;overflow:hidden}
+  #reconBar i{display:block;height:100%;width:0%;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .12s linear}
+
+  .val{font-size:10.5px;font-weight:800;letter-spacing:.14em}
+  .st-alive{color:var(--good)}.st-dead{color:var(--bad)}.st-fading{color:var(--warn)}.st-lock{color:var(--warn)}
+  dl.kv{display:grid;grid-template-columns:auto 1fr;gap:7px 12px;margin:0}
+  dl.kv dt{color:var(--muted);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;align-self:center}
+  dl.kv dd{margin:0;text-align:right;font-size:12.5px}
+  .ins-head{display:flex;gap:11px;align-items:center;margin-bottom:10px}
+  #insSwatch,#insOSwatch{width:52px;height:52px;border-radius:10px;border:1px dashed #39445c;flex:none;
+    background:repeating-conic-gradient(#181f2e 0 25%,#10141d 0 50%) 0 0/12px 12px}
+  .meter{height:7px;border-radius:4px;background:#232b3a;overflow:hidden;min-width:100px}
+  .meter i{display:block;height:100%;border-radius:4px;transition:width .15s}
+  #mImp i{background:linear-gradient(90deg,hsl(240,85%,55%),hsl(0,90%,55%))}
+  #mFade i{background:linear-gradient(90deg,#ff6b6b,var(--warn))}
+  #statRows{display:grid;grid-template-columns:1fr auto;gap:6px 12px;margin:0}
+  #statRows dt{color:var(--muted);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;align-self:center}
+  #statRows dd{margin:0;text-align:right;font-size:12.5px}
+
+  #toasts{position:fixed;bottom:44px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;
+    align-items:center;gap:8px;z-index:99;pointer-events:none}
+  .toast{background:#1b2230;border:1px solid #39445c;color:var(--text);font-size:12.5px;
+    padding:9px 16px;border-radius:999px;box-shadow:0 8px 28px rgba(0,0,0,.5);
+    opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;max-width:80vw}
+  .toast.show{opacity:1;transform:translateY(0)}
+
+  @media (max-width:1140px){
+    body{overflow:auto}
+    main.layout{grid-template-columns:1fr;overflow:visible}
+    .stage{order:-1}
+    .canvas-wrap{min-height:56vh}
+    .side{overflow:visible}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <img id="siteLogo" src="logo.png" alt="Image Evolution" style="height:26px;width:auto;display:none;border-radius:6px">
+  <div class="logo"><span class="mark" id="logoMark">▚▞</span> IMAGE&nbsp;EVOLUTION</div>
+  <div class="tagline">the structure holds · the interior evolves · the image dissolves · its own colors rebuild it</div>
+</header>
+
+<main class="layout">
+
+  <!-- ══════════ LEFT ══════════ -->
+  <aside class="side left">
+    <section class="card">
+      <h2>Image Source <small>init · analysis</small></h2>
+      <input type="file" id="fileInput" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" hidden>
+      <button class="btn primary" id="btnBrowse">Upload PNG / JPG / WEBP</button>
+      <button class="btn" id="btnSample">Generate sample image</button>
+      <p class="hint">…or drop a file anywhere on the page</p>
+      <div class="src">
+        <img id="srcThumb" alt="source">
+        <div>
+          <div class="meta mono" id="srcMeta">—</div>
+          <div class="hint">Used only to initialize cells &amp; analyze structure. Never drawn beneath the simulation.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Grid</h2>
+      <div class="seg" id="dimPresets">
+        <button data-v="16">16</button><button data-v="24">24</button><button data-v="32" class="active">32</button>
+        <button data-v="48">48</button><button data-v="64">64</button><button data-v="96">96</button><button data-v="128">128</button>
+      </div>
+      <div class="row2">
+        <label>Rows <input type="number" id="inRows" min="8" max="192" value="32"></label>
+        <label>Cols <input type="number" id="inCols" min="8" max="192" value="32"></label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Sampling <small>likeness</small></h2>
+      <div class="slider-label"><span>Detail clarity</span></div>
+      <div class="slider-row">
+        <input type="range" id="inClar" min="0" max="100" value="65">
+        <output id="clarOut">65%</output>
+      </div>
+      <label class="switch"><input type="checkbox" id="inAspect" checked><span class="tg"></span>Match image aspect</label>
+      <p class="hint">Clarity pulls each cell toward its most <b>distinctive pixel</b> — eyes, lips and outlines stay visible instead of averaging into skin tone. Averages are computed in <b>linear light</b> for truer tones.<br><br><b>Photos / portraits:</b> use <b>96–128</b> grid + clarity <b>60–85%</b>, and turn on <b>Smooth cell rendering</b> below.</p>
+    </section>
+
+    <section class="card">
+      <h2>Structure Preservation <small id="lockStat">–</small></h2>
+      <div class="slider-row">
+        <input type="range" id="inStruct" min="0" max="100" value="35">
+        <output id="structOut">35%</output>
+      </div>
+      <label class="switch"><input type="checkbox" id="dbgOutline"><span class="tg"></span>Outline locked cells in SIM view</label>
+      <p class="hint">Strongest contours become a <b>permanent skeleton</b>: always alive, original color, unkillable. With clarity on, eyes and lips are strong lock candidates.</p>
+    </section>
+
+    <section class="card">
+      <h2>Importance</h2>
+      <div class="slider-label"><span>Survival strength</span></div>
+      <div class="slider-row">
+        <input type="range" id="inStrength" min="0" max="100" value="60">
+        <output id="strOut">0.60</output>
+      </div>
+      <div class="slider-label"><span>Edge sensitivity</span></div>
+      <div class="slider-row">
+        <input type="range" id="inSens" min="20" max="300" value="100">
+        <output id="sensOut">1.00×</output>
+      </div>
+      <p class="hint">Doomed cells resist death with probability ≈ <b>strength × importance<sup>1.25</sup></b> (capped at 95% — nothing is immortal).</p>
+    </section>
+
+    <section class="card">
+      <h2>Visual</h2>
+      <label class="switch"><input type="checkbox" id="dbgGrid" checked><span class="tg"></span>Show grid</label>
+      <label class="switch"><input type="checkbox" id="dbgAge" checked><span class="tg"></span>Subtle age tinting</label>
+      <label class="switch"><input type="checkbox" id="dbgSmooth"><span class="tg"></span>Smooth cell rendering</label>
+      <p class="hint">Smooth blits the grid through a <b>1&nbsp;px-per-cell buffer</b> with interpolation — photo-like at high grids and <b>faster</b> than per-cell rectangles (cell gap is ignored; grid lines still overlay).</p>
+      <div class="slider-label"><span>Grid opacity</span></div>
+      <div class="slider-row"><input type="range" id="inGAlpha" min="5" max="60" value="14"><output id="gAlphaOut">14%</output></div>
+      <div class="slider-label"><span>Cell gap</span></div>
+      <div class="slider-row"><input type="range" id="inGap" min="0" max="8" value="1"><output id="gapOut">1 px</output></div>
+      <div class="slider-label"><span>Fade speed</span></div>
+      <div class="slider-row"><input type="range" id="inFade" min="2" max="100" value="25"><output id="fadeOut">0.25/g</output></div>
+      <div class="slider-label"><span>Background</span></div>
+      <div class="seg" id="bgSeg" style="margin-top:6px">
+        <button data-v="dark" class="active"><i class="chip" style="background:#10141d"></i>Dark</button>
+        <button data-v="black"><i class="chip" style="background:#000"></i>Black</button>
+        <button data-v="white"><i class="chip" style="background:#fff"></i>White</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Reconstruction</h2>
+      <div class="slider-label"><span>Fill mode</span></div>
+      <div class="seg" id="fillSeg" style="margin-top:6px">
+        <button data-v="memory" class="active">MEMORY</button>
+        <button data-v="original">ORIGINAL</button>
+      </div>
+      <div class="slider-label"><span>Wave pattern</span></div>
+      <div class="seg" id="recSeg" style="margin-top:6px">
+        <button data-v="outside" class="active">OUT → IN</button>
+        <button data-v="center">CENTER → OUT</button>
+        <button data-v="random">RANDOM</button>
+        <button data-v="scan">SCANLINE</button>
+      </div>
+      <label class="switch" style="margin-top:6px"><input type="checkbox" id="dbgShimmer" checked><span class="tg"></span>Mutant shimmer after restore</label>
+      <div class="slider-label"><span>Wave speed</span></div>
+      <div class="slider-row"><input type="range" id="inRecSpd" min="25" max="400" value="100"><output id="recSpdOut">×1.0</output></div>
+      <p class="hint" id="recHint"><b>MEMORY</b> (default): empty cells are recolonized by the <b>evolved colors of their restored neighbors</b> — the image reforms as a memory of its journey. Surviving mutants keep their colors and flare as the wave passes. ORIGINAL = classic Gen-0 restore.</p>
+    </section>
+
+    <section class="card">
+      <h2>Simulation Speed</h2>
+      <div class="slider-row"><input type="range" id="inSpeed" min="1" max="30" value="12"><output id="speedOut">12 gps</output></div>
+    </section>
+
+    <section class="card">
+      <h2>Audio <small>procedural</small></h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label class="switch" style="flex:1"><input type="checkbox" id="sndOn"><span class="tg"></span>Sound effects</label>
+        <button class="btn" id="sndTest" style="width:48px;flex:none;padding:8px 0" title="Test sound (also unlocks audio)">🔊</button>
+      </div>
+      <div class="hint mono" id="sndStat" style="margin-top:6px">engine: off</div>
+      <div class="slider-label"><span>Master volume</span></div>
+      <div class="slider-row"><input type="range" id="sndVol" min="0" max="100" value="75"><output id="sndVolOut">75%</output></div>
+      <label class="switch"><input type="checkbox" id="sndBirth" checked><span class="tg"></span>Birth plucks</label>
+      <label class="switch"><input type="checkbox" id="sndDeath" checked><span class="tg"></span>Dissolution ticks</label>
+      <label class="switch"><input type="checkbox" id="sndRec" checked><span class="tg"></span>Reconstruction swell</label>
+      <label class="switch"><input type="checkbox" id="sndDrone" checked><span class="tg"></span>Population drone</label>
+      <div class="slider-label"><span>Drone level</span></div>
+      <div class="slider-row"><input type="range" id="sndDroneVol" min="0" max="100" value="55"><output id="sndDroneVolOut">55%</output></div>
+      <p class="hint"><b>Off by default</b> (browser autoplay rules). Click 🔊 once — it unlocks the audio engine and plays a test chime. Any click/keypress also wakes the engine if the browser suspended it.</p>
+    </section>
+  </aside>
+
+  <!-- ══════════ CENTER ══════════ -->
+  <section class="stage">
+    <div class="toolbar">
+      <div class="seg" id="viewSeg" style="flex:0 1 auto">
+        <button data-v="sim" class="active">SIMULATION</button>
+        <button data-v="gen0">GEN 0</button>
+        <button data-v="mask">MASK</button>
+        <button data-v="heat">HEATMAP</button>
+        <button data-v="original">ORIGINAL</button>
+      </div>
+      <div class="transport" style="margin-left:auto">
+        <button id="btnReset" class="tbtn" title="Reset to Gen 0 (R)" disabled>↺</button>
+        <button id="btnStep"  class="tbtn" title="Next generation (→)">▶│</button>
+        <button id="btnPlay"  class="tbtn play" title="Play / Pause (Space)">▶</button>
+        <button id="btnReplay" class="tbtn" title="Replay evolution (Y)">⟳</button>
+        <button id="btnRecon" class="tbtn" title="Reconstruct now (C) — available while paused" disabled>✦</button>
+      </div>
+      <span id="genBadge">GEN 0</span>
+      <span id="phaseChip">READY</span>
+      <div class="transport">
+        <button id="btnZoomOut" class="tbtn">−</button>
+        <button id="btnZoomIn" class="tbtn">+</button>
+        <button id="btnFit" class="tbtn" title="Fit (F)">⛶</button>
+      </div>
+    </div>
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="board"></canvas>
+      <div id="origBanner" class="banner">ORIGINAL — COMPARISON ONLY · SIM UNAFFECTED</div>
+      <div id="maskBanner" class="banner">STRUCTURAL MASK — <span style="color:var(--warn)">■ LOCKED SKELETON</span> · <span style="color:#7f92b8">■ EVOLVING INTERIOR</span></div>
+      <div id="heatLegend"><span>0.0</span><div class="bar"></div><span>1.0 · vital</span></div>
+      <div id="legendChips">
+        <div class="lg-row"><span class="lg-sw" style="background:var(--warn)"></span>LOCKED STRUCTURAL CELL</div>
+        <div class="lg-row"><span class="lg-sw" style="background:#33415e"></span>EVOLVING INTERIOR CELL</div>
+      </div>
+      <div class="hud" id="hud">—</div>
+    </div>
+  </section>
+
+  <!-- ══════════ RIGHT ══════════ -->
+  <aside class="side right">
+    <section class="card">
+      <h2>Status</h2>
+      <p id="phaseTitle" style="color:var(--good)">READY — GENERATION 0</p>
+      <p id="phaseSub" class="hint">Press <b>▶ Play</b>. Runs until extinction, stability, or a loop — or pause anytime and press <b>✦ Reconstruct</b> to rebuild from the current state.</p>
+      <div id="reconBarWrap"><div class="slider-label"><span>Reconstruction</span><span id="reconPct" class="mono">0%</span></div>
+        <div id="reconBar"><i></i></div></div>
+    </section>
+
+    <section class="card">
+      <h2>Vital Signs</h2>
+      <dl id="statRows">
+        <dt>Generation</dt>          <dd id="stGen" class="mono">0</dd>
+        <dt>Locked skeleton</dt>     <dd id="stLock" class="mono">–</dd>
+        <dt>Alive (interior)</dt>    <dd id="stAlive" class="mono">–</dd>
+        <dt>Fading ghosts</dt>       <dd id="stFading" class="mono">–</dd>
+        <dt>Mutated colors</dt>      <dd id="stMut" class="mono">–</dd>
+      </dl>
+    </section>
+
+    <section class="card">
+      <h2>Debug Mode <small>inspector</small></h2>
+      <label class="switch"><input type="checkbox" id="dbgOn" checked><span class="tg"></span>Enable cell inspector</label>
+      <p class="hint">Hover to probe · click to pin.</p>
+    </section>
+
+    <section class="card">
+      <h2>Cell Inspector</h2>
+      <div class="hint" id="insEmpty">Hover over any cell…</div>
+      <div id="insBody" hidden>
+        <div class="ins-head">
+          <div id="insSwatch"></div>
+          <div style="flex:1">
+            <div id="insCell" class="mono" style="font-weight:700">CELL (–, –)</div>
+            <div id="insState" class="val st-alive">ALIVE</div>
+            <div id="insCurHex" class="mono hint" style="margin:4px 0 0">—</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:9.5px;color:var(--muted);letter-spacing:.1em">ORIGINAL</div>
+            <div id="insOSwatch" style="margin-top:4px"></div>
+            <div id="insOHex" class="mono hint" style="margin:4px 0 0">—</div>
+          </div>
+        </div>
+        <dl class="kv">
+          <dt>Row</dt>            <dd id="insRow" class="mono">–</dd>
+          <dt>Column</dt>         <dd id="insCol" class="mono">–</dd>
+          <dt>Status</dt>         <dd id="insStatus" class="val">–</dd>
+          <dt>Structural lock</dt><dd id="insLock" class="val">–</dd>
+          <dt>Neighbors</dt>      <dd id="insNb" class="mono">–</dd>
+          <dt>Current color</dt>  <dd id="insCur" class="mono">–</dd>
+          <dt>Original color</dt> <dd id="insOrig" class="mono">–</dd>
+          <dt>Importance</dt>     <dd style="display:flex;justify-content:flex-end;align-items:center;gap:8px">
+              <div class="meter" id="mImp"><i style="width:0%"></i></div><span id="insImpV" class="mono">–</span></dd>
+          <dt>Fade</dt>           <dd style="display:flex;justify-content:flex-end;align-items:center;gap:8px">
+              <div class="meter" id="mFade"><i style="width:0%"></i></div><span id="insFadeV" class="mono">–</span></dd>
+          <dt>Age</dt>            <dd id="insAge" class="mono">–</dd>
+        </dl>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Export</h2>
+      <button class="btn" id="expPng">⬇ Current view · PNG</button>
+    </section>
+  </aside>
+</main>
+
+<footer>SPACE play · → step · R reset · Y replay · C reconstruct · F fit · ESC unpin · wheel zoom · drag pan · click 🔊 in AUDIO to unlock sound</footer>
+<div id="toasts"></div>
+
+<script>
+'use strict';
+/* ═════════════════ helpers ═════════════════ */
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const hex2=n=>n.toString(16).padStart(2,'0');
+const rgbHex=(r,g,b)=>'#'+hex2(r)+hex2(g)+hex2(b);
+function toast(msg,ms=2600){
+  const t=document.createElement('div');t.className='toast';t.textContent=msg;
+  $('#toasts').appendChild(t);requestAnimationFrame(()=>t.classList.add('show'));
+  setTimeout(()=>{t.classList.remove('show');setTimeout(()=>t.remove(),300);},ms);
+}
+
+/* ═════════════════ LOGO / FAVICON (deployment) ═════════════════
+   Looks for "logo.png" in the same folder as this HTML file.
+   If present: shown in the header and used as the favicon.
+   If missing (e.g. not uploaded yet): fails silently, no broken-image
+   icon, and the emoji favicon stays as-is. Safe to deploy either way. */
+(function initLogo(){
+  const probe=new Image();
+  probe.onload=()=>{
+    const hdr=$('#siteLogo');
+    if(hdr){hdr.style.display='inline-block';}
+    const fav=$('#favicon');
+    if(fav)fav.href='logo.png';
+    const fb=$('#faviconFallback');
+    if(fb)fb.remove();
+  };
+  probe.onerror=()=>{ /* logo.png not found on server — keep default emoji mark, no broken image */ };
+  probe.src='logo.png';
+})();
+
+/* ═════════════════ state ═════════════════ */
+const S={
+  rows:32, cols:32,
+  clarity:0.65, aspect:true,
+  structPct:0.35, sens:1.0, survival:0.60,
+  fadeStep:0.25, gap:0, gridAlpha:0.14, bg:'dark', smooth:false,
+  speed:12, recMode:'outside', recFill:'memory', recMult:1.0, shimmer:true,
+  playing:false, view:'sim',
+};
+let srcImg=null;
+
+/* static per-cell data (set once per image/grid/analysis): */
+let N=0, lock=null, lockCount=0, importance=null, oR=null,oG=null,oB=null;
+
+/* DOUBLE BUFFERED dynamic state: */
+function makeBuf(){return{alive:new Uint8Array(N),r:new Uint8Array(N),g:new Uint8Array(N),b:new Uint8Array(N),
+  fade:new Float32Array(N),age:new Uint16Array(N)};}
+let cur=null,nxt=null,gen0Snap=null;
+
+/* lifecycle */
+let phase='idle';            // idle | running | complete | reconstructing | restored
+let gen=0, stopReason='', loopPeriod=0, lastRecMode='memory';
+let userFlow=0;
+
+/* loop detection */
+let seenMap=new Map(), seenList=[], SEEN_MAX=3000;
+
+/* reconstruction + chroma bloom */
+let recon=null;
+let bloomFx=null, mutantMask=null, bloomCount=0, mutantCount=0;
+
+/* per-generation event counters (read by the audio system) */
+let lastEvents={births:0,deaths:0,impB:0,impD:0};
+
+/* ui */
+let hover=null,pinned=null,drag=null,needRender=true;
+
+/* ═══════════════════════════════════════════════════════════
+   AudioFX — procedural sound module (Web Audio API).
+   Separated from simulation / image / rendering logic.
+   Every entry point is a no-op unless enabled + initialized.
+   ═══════════════════════════════════════════════════════════ */
+const AudioFX=(()=>{
+  let ctx=null, master=null, noiseBuf=null;
+  const cfg={enabled:false, vol:0.75, births:true, deaths:true, recon:true, drone:true, droneVol:0.55};
+  let lastGenAt=0, lastProgAt=0, recLayer=null;
+
+  /* population drone layer: two detuned oscillators through a lowpass,
+     pitch + brightness + gain all track live population fraction */
+  let drone=null, droneTarget=0, dronePop=0;
+
+  const ready=()=>cfg.enabled&&ctx&&ctx.state==='running';
+
+  function init(){                       /* must be called from a user gesture */
+    if(ctx){ if(ctx.state==='suspended')ctx.resume().catch(()=>{}); return true; }
+    try{
+      const AC=window.AudioContext||window.webkitAudioContext;
+      if(!AC)return false;
+      ctx=new AC();
+      const comp=ctx.createDynamicsCompressor();   /* safety net only */
+      comp.threshold.value=-20; comp.knee.value=20; comp.ratio.value=8;
+      comp.attack.value=0.004; comp.release.value=0.22;
+      master=ctx.createGain(); master.gain.value=cfg.vol;
+      master.connect(comp); comp.connect(ctx.destination);
+      const len=Math.floor(ctx.sampleRate*1.2);
+      noiseBuf=ctx.createBuffer(1,len,ctx.sampleRate);
+      const ch=noiseBuf.getChannelData(0);
+      for(let i=0;i<len;i++)ch[i]=Math.random()*2-1;
+      return true;
+    }catch(e){ ctx=null; return false; }
+  }
+
+  function wake(){                       /* resume if the browser suspended us */
+    if(cfg.enabled&&ctx&&ctx.state==='suspended')ctx.resume().catch(()=>{});
+  }
+
+  /* short synthesized tone: gain starts at ~0, quick attack, smooth decay */
+  function tone(o){
+    if(!ready())return;
+    try{
+      const t=ctx.currentTime+(o.dl||0), at=o.at||0.006, dec=o.dec||0.15;
+      const osc=ctx.createOscillator();
+      osc.type=o.w||'sine';
+      osc.frequency.setValueAtTime(o.f0,t);
+      if(o.f1)osc.frequency.exponentialRampToValueAtTime(Math.max(20,o.f1),t+at+dec);
+      const g=ctx.createGain();
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.linearRampToValueAtTime(o.pk,t+at);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+at+dec);
+      osc.connect(g); g.connect(master);
+      osc.start(t); osc.stop(t+at+dec+0.08);
+      osc.onended=()=>{try{g.disconnect();}catch(e){}};
+    }catch(e){}
+  }
+
+  /* filtered noise burst / sweep */
+  function hiss(o){
+    if(!ready())return;
+    try{
+      const t=ctx.currentTime+(o.dl||0);
+      const src=ctx.createBufferSource(); src.buffer=noiseBuf; src.loop=true;
+      const f=ctx.createBiquadFilter(); f.type=o.type||'bandpass'; f.Q.value=o.q||1.2;
+      f.frequency.setValueAtTime(o.f0,t);
+      if(o.f1)f.frequency.exponentialRampToValueAtTime(Math.max(40,o.f1),t+o.dur);
+      const g=ctx.createGain();
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.linearRampToValueAtTime(o.pk,t+Math.min(0.05,o.dur*0.3));
+      g.gain.exponentialRampToValueAtTime(0.0001,t+o.dur);
+      src.connect(f); f.connect(g); g.connect(master);
+      src.start(t); src.stop(t+o.dur+0.08);
+      src.onended=()=>{try{g.disconnect();f.disconnect();}catch(e){}};
+    }catch(e){}
+  }
+
+  /* ONE aggregated sound per generation — never one per cell.
+     Births = warm rising pluck (short, bright, upward).
+     Deaths = slow, low, downward decay — clearly the "dying" register,
+     with a longer tail and darker filtered hiss so it reads as
+     dissolving rather than a mirror-image of a birth. */
+  function generationEvent(ev){
+    wake();
+    if(!ready())return;
+    const now=performance.now();
+    const gap=S.speed>14?55:38;
+    if(now-lastGenAt<gap)return;
+    lastGenAt=now;
+    const fast=S.speed>14, k=fast?0.7:1;        /* shorter, slightly quieter when fast */
+    const {births,deaths,impB,impD}=ev;
+    if(births>0&&cfg.births){
+      const m=Math.min(1,Math.sqrt(births/50));
+      const f=520+170*Math.log2(1+Math.min(births,64));
+      /* bright, quick, rising triangle — unmistakably a "growing" sound */
+      tone({w:'triangle',f0:f,f1:f*1.34,dec:(fast?0.09:0.14)*k,pk:(0.13+0.19*m)*k,at:0.004});
+      if(impB>0)tone({w:'sine',f0:f*2.02,dec:0.22*k,pk:(0.05+0.06*Math.min(1,impB/12))*k,dl:0.02});
+    }
+    if(deaths>0&&cfg.deaths){
+      const m=Math.min(1,Math.sqrt(deaths/70));
+      const deep=impD>0;
+      /* low register, long exponential decay, sags further down in pitch —
+         roughly 2x the decay time of a birth pluck, sine+sub for a "sinking" feel */
+      tone({w:'sine',f0:deep?190:230,f1:deep?70:95,dec:(fast?0.24:0.42)*k,pk:(0.11+0.17*m)*k,dl:0.02,at:0.012});
+      tone({w:'sine',f0:(deep?95:115),f1:(deep?45:55),dec:(fast?0.30:0.52)*k,pk:(0.05+0.08*m)*k,dl:0.03});
+      hiss({f0:520,f1:220,q:1.1,dur:(fast?0.16:0.30)*k,pk:0.03*k});
+    }
+  }
+
+  function complete(reason){
+    wake();
+    if(!ready())return;
+    if(reason==='EXTINCTION'){
+      tone({w:'sine',f0:330,f1:196,dec:0.5,pk:0.18});
+      tone({w:'sine',f0:165,f1:98,dec:0.6,pk:0.11,dl:0.05});
+    }else if(reason==='LOOP'){
+      tone({w:'sine',f0:294,dec:0.22,pk:0.16});
+      tone({w:'sine',f0:294,dec:0.3,pk:0.14,dl:0.19});
+    }else{
+      tone({w:'sine',f0:262,dec:0.18,pk:0.16});
+      tone({w:'sine',f0:262,dec:0.3,pk:0.13,dl:0.14});
+    }
+  }
+
+  function stopRecLayer(){
+    if(!recLayer)return;
+    try{
+      const {o1,o2,g}=recLayer, t=ctx.currentTime;
+      g.gain.cancelScheduledValues(t);
+      g.gain.setTargetAtTime(0.0001,t,0.12);
+      o1.stop(t+0.5); o2.stop(t+0.5);
+    }catch(e){}
+    recLayer=null;
+  }
+
+  function reconStart(){
+    wake();
+    if(!ready()||!cfg.recon)return;
+    hiss({f0:260,f1:2600,q:1.1,dur:1.1,pk:0.07});
+    tone({w:'sine',f0:150,f1:330,at:0.25,dec:0.9,pk:0.08});
+    try{
+      stopRecLayer();
+      const o1=ctx.createOscillator(), o2=ctx.createOscillator();
+      o1.type='sine'; o2.type='sine'; o2.detune.value=8;
+      const f=ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=420; f.Q.value=0.8;
+      const g=ctx.createGain(); g.gain.value=0.0001;
+      o1.frequency.value=170; o2.frequency.value=170;
+      o1.connect(f); o2.connect(f); f.connect(g); g.connect(master);
+      g.gain.linearRampToValueAtTime(0.05,ctx.currentTime+0.6);
+      o1.start(); o2.start();
+      recLayer={o1,o2,f,g};
+    }catch(e){}
+  }
+
+  function reconProgress(p){
+    if(!ready()||!recLayer)return;
+    const now=performance.now();
+    if(now-lastProgAt<90)return;
+    lastProgAt=now;
+    try{
+      const fr=170*Math.pow(2,p*1.55);
+      recLayer.o1.frequency.setTargetAtTime(fr,ctx.currentTime,0.08);
+      recLayer.o2.frequency.setTargetAtTime(fr,ctx.currentTime,0.08);
+      recLayer.f.frequency.setTargetAtTime(420+3600*Math.pow(p,1.4),ctx.currentTime,0.08);
+      recLayer.g.gain.setTargetAtTime(0.03+0.05*p,ctx.currentTime,0.1);
+    }catch(e){}
+  }
+
+  function reconDone(){
+    stopRecLayer();
+    wake();
+    if(!ready()||!cfg.recon)return;
+    tone({w:'sine',f0:523.25,dec:0.7,pk:0.16});
+    tone({w:'sine',f0:659.25,dec:0.7,pk:0.13,dl:0.09});
+    tone({w:'sine',f0:783.99,dec:0.85,pk:0.13,dl:0.18});
+    tone({w:'sine',f0:1567.98,dec:0.5,pk:0.05,dl:0.22});
+    hiss({f0:3200,f1:5200,q:1,dur:0.35,pk:0.02,dl:0.05});
+  }
+
+  /* ── population drone: continuous ambient layer whose pitch/brightness/
+     gain track live population fraction (alive interior / total interior).
+     Smoothly ramps toward a target each tick rather than snapping, so
+     growth/shrink reads as a gliding tone instead of stepwise jumps. */
+  function droneEnsure(){
+    if(drone||!ctx)return;
+    try{
+      const o1=ctx.createOscillator(), o2=ctx.createOscillator();
+      o1.type='sine'; o2.type='sine'; o2.detune.value=6;
+      const f=ctx.createBiquadFilter(); f.type='lowpass'; f.frequency.value=220; f.Q.value=0.6;
+      const g=ctx.createGain(); g.gain.value=0.0001;
+      o1.frequency.value=90; o2.frequency.value=90;
+      o1.connect(f); o2.connect(f); f.connect(g); g.connect(master);
+      o1.start(); o2.start();
+      drone={o1,o2,f,g};
+    }catch(e){}
+  }
+  function droneStop(){
+    if(!drone)return;
+    try{
+      const t=ctx.currentTime;
+      drone.g.gain.cancelScheduledValues(t);
+      drone.g.gain.setTargetAtTime(0.0001,t,0.15);
+      drone.o1.stop(t+0.6); drone.o2.stop(t+0.6);
+    }catch(e){}
+    drone=null;
+  }
+  /* called every generation with population fraction 0..1 */
+  function droneUpdate(frac){
+    dronePop=frac;
+    if(!cfg.enabled||!cfg.drone){droneStop();return;}
+    if(!ready()){return;}
+    droneEnsure();
+    if(!drone)return;
+    try{
+      const t=ctx.currentTime;
+      const fr=62+150*Math.pow(frac,0.9);              /* low & sub-heavy when empty, rises as it fills */
+      const cut=140+2600*Math.pow(frac,1.3);             /* brighter as population grows */
+      const gn=cfg.droneVol*(0.05+0.85*Math.pow(frac,0.8));
+      drone.o1.frequency.setTargetAtTime(fr,t,0.4);
+      drone.o2.frequency.setTargetAtTime(fr,t,0.4);
+      drone.f.frequency.setTargetAtTime(cut,t,0.5);
+      drone.g.gain.setTargetAtTime(gn,t,0.5);
+    }catch(e){}
+  }
+
+  function test(){                          /* audible confirmation + unlock */
+    if(!cfg.enabled)return false;
+    if(!init())return false;
+    wake();
+    tone({w:'sine',f0:523.25,dec:0.35,pk:0.2});
+    tone({w:'sine',f0:783.99,dec:0.45,pk:0.16,dl:0.12});
+    tone({w:'triangle',f0:1046.5,dec:0.5,pk:0.1,dl:0.24});
+    return true;
+  }
+
+  function setEnabled(v){
+    cfg.enabled=v;
+    if(v){ if(!init()){cfg.enabled=false;return false;} else{droneUpdate(dronePop);} }
+    else{ stopRecLayer(); droneStop(); if(ctx&&ctx.state==='running')ctx.suspend().catch(()=>{}); }
+    return true;
+  }
+  function setVol(v){ cfg.vol=v; if(master&&ctx)master.gain.setTargetAtTime(v,ctx.currentTime,0.04); }
+  function setOpt(k,v){
+    if(k in cfg)cfg[k]=v;
+    if(k==='drone'){ if(!v)droneStop(); else droneUpdate(dronePop); }
+  }
+  function setDroneVol(v){ cfg.droneVol=v; droneUpdate(dronePop); }
+  function stopAll(){ stopRecLayer(); droneStop(); }
+  function status(){
+    if(!cfg.enabled)return'off';
+    if(!ctx)return'unavailable';
+    return ctx.state;
+  }
+
+  return {setEnabled,setVol,setOpt,setDroneVol,generationEvent,complete,reconStart,reconProgress,reconDone,
+          droneUpdate,stopDrone:droneStop,stopAll,test,wake,status};
+})();
+
+/* wake the audio engine on ANY interaction if the browser suspended it */
+['pointerdown','keydown'].forEach(ev=>window.addEventListener(ev,()=>AudioFX.wake(),{passive:true}));
+
+/* ═════════════════ IMAGE PROCESSING ═════════════════ */
+const work=document.createElement('canvas');
+const wctx=work.getContext('2d',{willReadFrequently:true});
+
+/* sRGB ↔ linear-light LUTs for perceptually correct averaging */
+const S2L=new Float32Array(256);
+for(let i=0;i<256;i++){
+  const v=i/255;
+  S2L[i]=v<=0.04045?v/12.92:Math.pow((v+0.055)/1.055,2.4);
+}
+const L2S=v=>v<=0.0031308?12.92*v:Math.round(255*(1.055*Math.pow(v,1/2.4)-0.055));
+
+function setSource(img,name){
+  srcImg=img;
+  const CAP=1024,sc=Math.min(1,CAP/Math.max(img.width,img.height));
+  work.width=Math.max(1,Math.round(img.width*sc));
+  work.height=Math.max(1,Math.round(img.height*sc));
+  wctx.clearRect(0,0,work.width,work.height);
+  wctx.imageSmoothingQuality='high';
+  wctx.drawImage(img,0,0,work.width,work.height);
+  const t=document.createElement('canvas'),ts=Math.min(1,116/Math.max(img.width,img.height));
+  t.width=Math.max(1,Math.round(img.width*ts));t.height=Math.max(1,Math.round(img.height*ts));
+  t.getContext('2d').drawImage(img,0,0,t.width,t.height);
+  $('#srcThumb').src=t.toDataURL();
+  $('#srcMeta').textContent=`${img.width}×${img.height}px · ${name}`;
+  if(S.aspect)setDims(S.rows,aspectCols(S.rows));
+  else rebuildAll(true);
+  toast(`Loaded “${name}” — tip: grid 96–128 + “Smooth cell rendering” shines for photos`,3400);
+}
+
+function aspectCols(rows){
+  if(!S.aspect||!srcImg||!work.width||!work.height)return rows;
+  return clamp(Math.round(rows*work.width/work.height),8,192);
+}
+
+/* ═════════════════ LIKENESS-AWARE SAMPLING ═════════════════
+   1) average each cell in LINEAR light (truer tones, no muddy midtones)
+   2) find each region's most DISTANT pixel from its mean (the "detail
+      anchor" — the dark pupil, the bright earring, the lip edge)
+   3) pull the cell color toward that anchor by clarity × detail strength
+   → eyes/lips/outlines survive averaging instead of dissolving into skin */
+function sampleAverages(R,C,clarity){
+  const w=work.width,h=work.height;
+  const d=wctx.getImageData(0,0,w,h).data;
+  const out=new Uint8Array(R*C*3);
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const x0=Math.floor(c*w/C),x1=Math.min(w,Math.ceil((c+1)*w/C));
+    const y0=Math.floor(r*h/R),y1=Math.min(h,Math.ceil((r+1)*h/R));
+    const area=(x1-x0)*(y1-y0);
+    const step=area>4096?Math.ceil(Math.sqrt(area/4096)):1;
+    /* pass 1 — linear-light mean */
+    let ls=0,lg=0,lb=0,n=0;
+    for(let y=y0;y<y1;y+=step)for(let x=x0;x<x1;x+=step){
+      const i=(y*w+x)*4;
+      ls+=S2L[d[i]];lg+=S2L[d[i+1]];lb+=S2L[d[i+2]];n++;
+    }
+    const mr=L2S(ls/n),mg=L2S(lg/n),mb=L2S(lb/n);
+    /* pass 2 — detail anchor: pixel furthest (perceptually) from the mean */
+    let ax=mr,ay=mg,az=mb,best=0;
+    for(let y=y0;y<y1;y+=step)for(let x=x0;x<x1;x+=step){
+      const i=(y*w+x)*4;
+      const pr=d[i],pg=d[i+1],pb=d[i+2];
+      const dr=pr-mr,dg=pg-mg,db=pb-mb;
+      const dist=Math.sqrt(2*dr*dr+4*dg*dg+3*db*db);
+      if(dist>best){best=dist;ax=pr;ay=pg;az=pb;}
+    }
+    /* blend toward the anchor proportionally to how distinctive it is */
+    const detail=clamp(best/230,0,1);
+    const k=clarity*Math.pow(detail,0.75);
+    const o=(r*C+c)*3;
+    out[o]  =Math.round(mr+(ax-mr)*k);
+    out[o+1]=Math.round(mg+(ay-mg)*k);
+    out[o+2]=Math.round(mb+(az-mb)*k);
+  }
+  return out;
+}
+
+const pdist=(a,i,j)=>{
+  const dr=a[i*3]-a[j*3],dg=a[i*3+1]-a[j*3+1],db=a[i*3+2]-a[j*3+2];
+  return Math.sqrt(2*dr*dr+4*dg*dg+3*db*db);
+};
+
+function computeEdges(avg,R,C,sens){
+  const raw=new Float32Array(R*C);
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const i=r*C+c;let m=0;
+    if(r>0){const v=pdist(avg,i,i-C);if(v>m)m=v;}
+    if(r<R-1){const v=pdist(avg,i,i+C);if(v>m)m=v;}
+    if(c>0){const v=pdist(avg,i,i-1);if(v>m)m=v;}
+    if(c<C-1){const v=pdist(avg,i,i+1);if(v>m)m=v;}
+    raw[i]=m;
+  }
+  const sm=new Float32Array(R*C);
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const i=r*C+c;let m=raw[i];
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      const rr=r+dr,cc=c+dc;
+      if(rr<0||cc<0||rr>=R||cc>=C)continue;
+      const v=raw[rr*C+cc]*0.72;if(v>m)m=v;
+    }
+    sm[i]=m;
+  }
+  const sorted=Float32Array.from(sm).sort();
+  const ref=sorted[Math.floor(sorted.length*0.9)]||1e-4;
+  const out=new Float32Array(R*C);
+  for(let i=0;i<sm.length;i++)
+    out[i]=ref>1e-4?Math.pow(clamp(sm[i]*sens/ref,0,1),0.85):0;
+  return out;
+}
+
+function computeImportance(avg,R,C,sens){
+  const raw=new Float32Array(R*C);
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const i=r*C+c;let s=0,n=0;
+    if(r>0){s+=pdist(avg,i,i-C);n++;}
+    if(r<R-1){s+=pdist(avg,i,i+C);n++;}
+    if(c>0){s+=pdist(avg,i,i-1);n++;}
+    if(c<C-1){s+=pdist(avg,i,i+1);n++;}
+    raw[i]=n?s/n:0;
+  }
+  const sorted=Float32Array.from(raw).sort();
+  const ref=sorted[Math.floor(sorted.length*0.92)]||0;
+  const imp=new Float32Array(R*C);
+  for(let i=0;i<raw.length;i++)
+    imp[i]=ref>1e-4?Math.pow(clamp(raw[i]*sens/ref,0,1),0.9):0.03;
+  return imp;
+}
+
+function applyLockMask(edge,R,C){
+  const targets=Math.round(N*Math.pow(S.structPct,1.6));
+  lock=new Uint8Array(N);
+  lockCount=Math.min(targets,N);
+  if(targets<=0)return;
+  const idx=Array.from({length:N},(_,i)=>i).sort((a,b)=>edge[b]-edge[a]);
+  for(let k=0;k<lockCount;k++)lock[idx[k]]=1;
+}
+
+/* ═════════════════ BUILD / RESET ═════════════════ */
+function rebuildAll(fit){
+  N=S.rows*S.cols;
+  const avg=sampleAverages(S.rows,S.cols,S.clarity);
+  const edge=computeEdges(avg,S.rows,S.cols,S.sens);
+  importance=computeImportance(avg,S.rows,S.cols,S.sens);
+  oR=new Uint8Array(N);oG=new Uint8Array(N);oB=new Uint8Array(N);
+  for(let i=0;i<N;i++){oR[i]=avg[i*3];oG[i]=avg[i*3+1];oB[i]=avg[i*3+2];}
+  applyLockMask(edge,S.rows,S.cols);
+  $('#lockStat').textContent=`${lockCount} cells · ${((lockCount/N)*100).toFixed(1)}%`;
+  bloomFx=new Float32Array(N); mutantMask=new Uint8Array(N);
+  bloomCount=0; mutantCount=0;
+  cur=makeBuf();nxt=makeBuf();
+  for(let i=0;i<N;i++){
+    cur.alive[i]=1;cur.fade[i]=1;
+    cur.r[i]=oR[i];cur.g[i]=oG[i];cur.b[i]=oB[i];
+  }
+  gen0Snap={alive:cur.alive.slice(),r:cur.r.slice(),g:cur.g.slice(),b:cur.b.slice(),
+            fade:cur.fade.slice(),age:cur.age.slice()};
+  resetToGen0(false);
+  if(fit)fitView();
+}
+
+function resetToGen0(fit){
+  userFlow++;
+  cur.alive.set(gen0Snap.alive);cur.r.set(gen0Snap.r);cur.g.set(gen0Snap.g);
+  cur.b.set(gen0Snap.b);cur.fade.set(gen0Snap.fade);cur.age.set(gen0Snap.age);
+  gen=0;stopReason='';loopPeriod=0;
+  seenMap.clear();seenList=[];
+  recon=null;
+  bloomFx.fill(0);bloomCount=0;mutantMask.fill(0);mutantCount=0;
+  AudioFX.stopAll();
+  phase='idle';setPlaying(false);
+  setStatus();updateStats();
+  pinned=null;needRender=true;
+  if(fit)fitView();
+}
+
+/* ═════════════════ SIMULATION STEP (double buffered) ═════════════════
+   Reads only `cur`, writes only `nxt`, atomic swap at the end. */
+const NB=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+
+function packNonLockedBits(){
+  const bytes=(N+7)>>3,u=new Uint8Array(bytes);
+  for(let i=0;i<N;i++)if(!lock[i]&&cur.alive[i])u[i>>3]|=1<<(i&7);
+  return u;
+}
+const fnv1a=u=>{let h=2166136261>>>0;for(let i=0;i<u.length;i++){h^=u[i];h=Math.imul(h,16777619);}return h>>>0;};
+const bitsEqual=(a,b)=>{for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true;};
+function rememberState(u,g){
+  const h=fnv1a(u);
+  let bucket=seenMap.get(h);
+  if(!bucket){bucket=[];seenMap.set(h,bucket);}
+  const rec={bits:u,gen:g};bucket.push(rec);seenList.push({h,rec});
+  if(seenList.length>SEEN_MAX){
+    const old=seenList.shift();
+    const b=seenMap.get(old.h);
+    const ix=b.indexOf(old.rec);if(ix>=0)b.splice(ix,1);
+    if(!b.length)seenMap.delete(old.h);
+  }
+}
+function findRepeat(u){
+  const h=fnv1a(u),bucket=seenMap.get(h);
+  if(bucket)for(const rec of bucket)if(bitsEqual(rec.bits,u))return rec.gen;
+  return -1;
+}
+
+function step(){
+  const R=S.rows,C=S.cols,a=cur.alive,fs=S.fadeStep;
+  const na=nxt.alive;
+  na.set(a);nxt.r.set(cur.r);nxt.g.set(cur.g);nxt.b.set(cur.b);
+  nxt.fade.set(cur.fade);nxt.age.set(cur.age);
+  let births=0,deaths=0,impB=0,impD=0,anyInterior=false;
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const i=r*C+c;
+    let n=0;
+    for(let k=0;k<8;k++){
+      const rr=r+NB[k][0],cc=c+NB[k][1];
+      if(rr<0||cc<0||rr>=R||cc>=C)continue;
+      if(a[rr*C+cc])n++;
+    }
+    if(lock[i]){
+      na[i]=1;nxt.r[i]=oR[i];nxt.g[i]=oG[i];nxt.b[i]=oB[i];
+      nxt.fade[i]=1;nxt.age[i]=0;continue;
+    }
+    if(a[i]){
+      let survives=(n===2||n===3);
+      if(!survives){
+        const pSave=Math.min(0.95,S.survival*Math.pow(importance[i],1.25));
+        survives=Math.random()<pSave;
+      }
+      if(survives){nxt.fade[i]=1;nxt.age[i]=Math.min(65535,nxt.age[i]+1);}
+      else{
+        na[i]=0;nxt.fade[i]=Math.max(0,nxt.fade[i]-fs);nxt.age[i]=0;
+        deaths++;if(importance[i]>0.55)impD++;
+      }
+    }else if(n===3){
+      const parents=[];
+      for(let k=0;k<8;k++){
+        const rr=r+NB[k][0],cc=c+NB[k][1];
+        if(rr<0||cc<0||rr>=R||cc>=C)continue;
+        const j=rr*C+cc;
+        if(a[j])parents.push(j);
+      }
+      const p=parents[(Math.random()*parents.length)|0];
+      na[i]=1;nxt.r[i]=cur.r[p];nxt.g[i]=cur.g[p];nxt.b[i]=cur.b[p];
+      nxt.fade[i]=1;nxt.age[i]=0;
+      births++;if(importance[i]>0.55)impB++;
+    }else{
+      nxt.fade[i]=Math.max(0,nxt.fade[i]-fs);nxt.age[i]=0;
+    }
+    if(na[i])anyInterior=true;
+  }
+  lastEvents={births,deaths,impB,impD};
+  let reason=null;
+  if(!anyInterior)reason={reason:'EXTINCTION'};
+  else{
+    let stable=true;
+    for(let i=0;i<N;i++)if(na[i]!==a[i]){stable=false;break;}
+    if(stable)reason={reason:'STABLE STATE'};
+  }
+  const tmp=cur;cur=nxt;nxt=tmp;
+  gen++;
+  if(!reason){
+    const u=packNonLockedBits();
+    const rep=findRepeat(u);
+    if(rep>=0&&gen-rep>0)reason={reason:'LOOP',period:gen-rep};
+    else rememberState(u,gen);
+  }
+  return reason;
+}
+
+/* ═════════════════ LIFECYCLE / TRANSPORT ═════════════════ */
+function interiorPopFraction(){
+  const interior=Math.max(1,N-lockCount);
+  let al=0;
+  for(let i=0;i<N;i++)if(!lock[i]&&cur.alive[i])al++;
+  return al/interior;
+}
+function pushNext(){
+  if(phase!=='idle'&&phase!=='running')return;
+  const res=step();
+  if(res){
+    stopReason=res.reason;loopPeriod=res.period||0;
+    phase='complete';setPlaying(false);
+    setStatus();
+    AudioFX.complete(res.reason);
+    AudioFX.stopDrone();
+    toast(`Simulation complete — ${res.reason}${res.period?` (period ${res.period})`:''}`);
+    const myFlow=userFlow;
+    setTimeout(()=>{if(myFlow===userFlow&&phase==='complete')startReconstruction();},1200);
+  }else{
+    if(phase==='idle')phase='running';
+    setStatus();
+    AudioFX.generationEvent(lastEvents);
+    AudioFX.droneUpdate(interiorPopFraction());
+  }
+  needRender=true;updateStats();
+}
+function setPlaying(v){
+  if(v&&(phase==='complete'||phase==='reconstructing'||phase==='restored'))return;
+  if(v&&phase==='idle')phase='running';
+  S.playing=v;
+  const b=$('#btnPlay');
+  b.textContent=v?'⏸':'▶';b.classList.toggle('playing',v);
+  syncTransport();
+}
+function syncTransport(){
+  $('#btnReset').disabled=gen===0&&phase==='idle';
+  $('#btnStep').disabled=!(phase==='idle'||phase==='running')||S.playing;
+  $('#btnPlay').disabled=(phase==='complete'||phase==='reconstructing'||phase==='restored');
+  $('#btnRecon').disabled=phase!=='running';
+  $('#btnRecon').classList.toggle('attn',phase==='running'&&!S.playing);
+}
+function replay(){
+  resetToGen0(false);
+  setPlaying(true);
+  toast('Replaying evolution');
+}
+function manualReconstruct(){
+  if(phase!=='running')return;
+  setPlaying(false);
+  startReconstruction();
+  toast('Reconstructing from the current state');
+}
+$('#btnPlay').addEventListener('click',()=>setPlaying(!S.playing));
+$('#btnStep').addEventListener('click',()=>{setPlaying(false);pushNext();});
+$('#btnReset').addEventListener('click',()=>resetToGen0(true));
+$('#btnReplay').addEventListener('click',replay);
+$('#btnRecon').addEventListener('click',manualReconstruct);
+
+function setStatus(){
+  const t=$('#phaseTitle'),s=$('#phaseSub'),chip=$('#phaseChip'),rw=$('#reconBarWrap');
+  rw.style.display=phase==='reconstructing'?'block':'none';
+  const col=c=>{t.style.color=c;chip.style.color=c;chip.style.borderColor=c+'55';};
+  if(phase==='idle'){t.textContent='READY — GENERATION 0';col('var(--good)');chip.textContent='READY';
+    s.innerHTML='Press <b>▶ Play</b>. Runs until extinction, stability, or a loop — or pause anytime and press <b>✦ Reconstruct</b>.';}
+  else if(phase==='running'){t.textContent='EVOLVING…';col('var(--cyan)');chip.textContent='RUNNING';
+    s.innerHTML='Interior mutating · skeleton holding. Pause anytime, then <b>✦</b> to reconstruct from here.';}
+  else if(phase==='complete'){
+    t.textContent='SIMULATION COMPLETE';col('var(--warn)');
+    chip.textContent=stopReason==='LOOP'?'LOOP':stopReason;
+    s.innerHTML=`Reason: <b>${stopReason}</b>${loopPeriod?` · period ${loopPeriod} generations`:''}. Reconstruction starting…`;}
+  else if(phase==='reconstructing'){t.textContent='RECONSTRUCTING…';col('var(--accent)');chip.textContent='REBUILDING';
+    s.innerHTML=lastRecMode==='memory'
+      ?'The skeleton wave is recolonizing the interior with <b>evolved colors</b>. Mutants flare as the front passes.'
+      :'The skeleton is rebuilding the image back to its <b>original</b> pixelated colors.';}
+  else{
+    if(lastRecMode==='memory'){
+      t.textContent='MEMORY RESTORED';col('var(--good)');chip.textContent='RESTORED';
+      s.innerHTML=`The image reformed from <b>its own journey</b> — <b>${mutantCount}</b> mutant lineage${mutantCount===1?'':'s'} preserved${S.shimmer?' and shimmering':''}. <b>⟳ Replay</b> to evolve anew.`;
+    }else{
+      t.textContent='ORIGINAL RESTORED';col('var(--good)');chip.textContent='RESTORED';
+      s.innerHTML='The pixelated image is whole again. <b>⟳ Replay</b> to evolve anew, or export the frame.';
+    }
+  }
+  $('#genBadge').textContent='GEN '+gen;
+  syncTransport();
+}
+
+/* ═════════════════ CHROMA BLOOM ═════════════════ */
+function bloomSet(i,v){
+  if(bloomFx[i]<=0.02&&v>0.02)bloomCount++;
+  bloomFx[i]=v;
+}
+function bloomDecay(dtMs){
+  if(!bloomCount)return;
+  const d=dtMs/420;
+  for(let i=0;i<N;i++){
+    if(bloomFx[i]>0){
+      bloomFx[i]-=d*(mutantMask[i]?0.8:1.5);
+      if(bloomFx[i]<=0){bloomFx[i]=0;bloomCount--;}
+    }
+  }
+}
+
+/* ═════════════════ RECONSTRUCTION ═════════════════ */
+function computeRestoreOrder(){
+  const R=S.rows,C=S.cols,order=new Int32Array(N);
+  for(let i=0;i<N;i++)order[i]=i;
+  if(S.recMode==='random'){
+    for(let i=N-1;i>0;i--){const j=(Math.random()*(i+1))|0;const t=order[i];order[i]=order[j];order[j]=t;}
+    return order;
+  }
+  const key=new Int32Array(N);
+  if(S.recMode==='scan'){/* row-major identity */}
+  else if(S.recMode==='center'){
+    const cr=(R-1)/2,cc=(C-1)/2;
+    for(let r=0;r<R;r++)for(let c=0;c<C;c++)key[r*C+c]=(Math.max(Math.abs(r-cr),Math.abs(c-cc))*100)|0;
+  }else{
+    const dist=new Int32Array(N).fill(-1);
+    const q=[];let anyLock=false;
+    for(let i=0;i<N;i++)if(lock[i]){dist[i]=0;q.push(i);anyLock=true;}
+    if(!anyLock)for(let r=0;r<R;r++)for(let c=0;c<C;c++)
+      if(r===0||c===0||r===R-1||c===C-1){const i=r*C+c;if(dist[i]<0){dist[i]=0;q.push(i);}}
+    let head=0;
+    while(head<q.length){
+      const i=q[head++],r=(i/C)|0,c=i%C;
+      for(const[dr,dc]of[[1,0],[-1,0],[0,1],[0,-1]]){
+        const rr=r+dr,cc=c+dc;
+        if(rr<0||cc<0||rr>=R||cc>=C)continue;
+        const j=rr*C+cc;
+        if(dist[j]<0){dist[j]=dist[i]+1;q.push(j);}
+      }
+    }
+    for(let i=0;i<N;i++)key[i]=(dist[i]<0?1e6:dist[i])*100;
+  }
+  const idx=Array.from({length:N},(_,i)=>i).sort((a,b)=>key[a]-key[b]);
+  for(let i=0;i<N;i++)order[i]=idx[i];
+  return order;
+}
+
+function startReconstruction(){
+  mutantMask.fill(0);mutantCount=0;
+  for(let i=0;i<N;i++){
+    if(lock[i])continue;
+    const dx=cur.r[i]-oR[i],dy=cur.g[i]-oG[i],dz=cur.b[i]-oB[i];
+    if((cur.alive[i]||cur.fade[i]>0)&&(dx*dx+dy*dy+dz*dz)>144){mutantMask[i]=1;mutantCount++;}
+  }
+  lastRecMode=S.recFill;
+  recon={
+    order:computeRestoreOrder(),
+    pos:0,lastPos:0,
+    startT:new Float64Array(N).fill(-1),
+    done:new Uint8Array(N),
+    remaining:0,
+    snapR:cur.r.slice(),snapG:cur.g.slice(),snapB:cur.b.slice(),
+    snapF:cur.fade.slice(),
+    fromAlive:cur.alive.slice(),
+    tR:new Uint8Array(N),tG:new Uint8Array(N),tB:new Uint8Array(N),
+    dur:new Float32Array(N),
+    mode:S.recFill,
+  };
+  for(let i=0;i<N;i++){
+    recon.dur[i]=240+Math.random()*160;
+    if(lock[i])recon.done[i]=1;
+    else{
+      recon.remaining++;
+      if(recon.mode==='original'){recon.tR[i]=oR[i];recon.tG[i]=oG[i];recon.tB[i]=oB[i];}
+    }
+  }
+  phase='reconstructing';setStatus();
+  AudioFX.stopDrone();
+  AudioFX.reconStart();
+  needRender=true;
+}
+
+function advanceRecon(dtMs){
+  if(!recon)return;
+  const now=performance.now();
+  const rate=(N/3200)*S.recMult*dtMs;
+  recon.pos=Math.min(N,recon.pos+rate);
+  const upto=recon.pos|0;
+  for(let k=recon.lastPos;k<upto;k++){
+    const i=recon.order[k];
+    if(recon.done[i])continue;
+    recon.startT[i]=now;
+    if(lock[i]){recon.done[i]=1;continue;}
+    cur.alive[i]=1;
+    if(recon.mode==='memory'){
+      if(recon.fromAlive[i]){
+        recon.tR[i]=recon.snapR[i];recon.tG[i]=recon.snapG[i];recon.tB[i]=recon.snapB[i];
+      }else{
+        const cand=[];
+        const rr0=(i/S.cols)|0, cc0=i%S.cols;
+        for(let kk=0;kk<8;kk++){
+          const rr=rr0+NB[kk][0],cc=cc0+NB[kk][1];
+          if(rr<0||cc<0||rr>=S.rows||cc>=S.cols)continue;
+          const j=rr*S.cols+cc;
+          if(recon.done[j]&&cur.alive[j])cand.push(j);
+        }
+        if(cand.length){
+          const j=cand[(Math.random()*cand.length)|0];
+          recon.tR[i]=cur.r[j];recon.tG[i]=cur.g[j];recon.tB[i]=cur.b[j];
+        }else if(recon.snapF[i]>0){
+          recon.tR[i]=recon.snapR[i];recon.tG[i]=recon.snapG[i];recon.tB[i]=recon.snapB[i];
+        }else{
+          recon.tR[i]=oR[i];recon.tG[i]=oG[i];recon.tB[i]=oB[i];
+        }
+      }
+    }
+    bloomSet(i,mutantMask[i]?1.4:0.85);
+  }
+  recon.lastPos=upto;
+  for(let i=0;i<N;i++){
+    if(recon.done[i])continue;
+    const st=recon.startT[i];
+    if(st<0)continue;
+    let m=(now-st)/recon.dur[i];
+    if(m>=1){m=1;recon.done[i]=1;recon.remaining--;}
+    const e=m*m*(3-2*m);
+    cur.r[i]=Math.round(recon.snapR[i]+(recon.tR[i]-recon.snapR[i])*e);
+    cur.g[i]=Math.round(recon.snapG[i]+(recon.tG[i]-recon.snapG[i])*e);
+    cur.b[i]=Math.round(recon.snapB[i]+(recon.tB[i]-recon.snapB[i])*e);
+    cur.fade[i]=recon.snapF[i]+(1-recon.snapF[i])*e;
+    cur.alive[i]=1;
+  }
+  const interior=Math.max(1,N-lockCount);
+  const frac=1-recon.remaining/interior;
+  $('#reconBar i').style.width=(frac*100)+'%';
+  $('#reconPct').textContent=((frac*100)|0)+'%';
+  AudioFX.reconProgress(frac);
+  needRender=true;
+  if(recon.remaining<=0&&recon.pos>=N){
+    const mode=recon.mode;
+    recon=null;phase='restored';setStatus();
+    toast(mode==='memory'?'MEMORY RESTORED':'ORIGINAL RESTORED');
+    AudioFX.reconDone();
+  }
+}
+
+/* ═════════════════ STATS ═════════════════ */
+function updateStats(){
+  let al=0,fd=0,mut=0;
+  for(let i=0;i<N;i++){
+    if(lock[i])continue;
+    if(cur.alive[i]){
+      al++;
+      if(Math.abs(cur.r[i]-oR[i])>2||Math.abs(cur.g[i]-oG[i])>2||Math.abs(cur.b[i]-oB[i])>2)mut++;
+    }else if(cur.fade[i]>0)fd++;
+  }
+  $('#stGen').textContent=gen;
+  $('#stLock').textContent=`${lockCount} (${((lockCount/N)*100).toFixed(0)}%)`;
+  $('#stAlive').textContent=al;
+  $('#stFading').textContent=fd;
+  $('#stMut').textContent=mut;
+}
+
+/* ═════════════════ RENDERING ═════════════════ */
+const canvas=$('#board'),ctx=canvas.getContext('2d'),wrap=$('#canvasWrap');
+const view={x:0,y:0,scale:14};
+
+function sizeCanvas(){
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=Math.max(1,Math.round(wrap.clientWidth*dpr));
+  canvas.height=Math.max(1,Math.round(wrap.clientHeight*dpr));
+}
+new ResizeObserver(()=>{sizeCanvas();needRender=true;}).observe(wrap);
+
+function fitView(){
+  const W=wrap.clientWidth,H=wrap.clientHeight,m=36;
+  view.scale=clamp(Math.min((W-m)/S.cols,(H-m)/S.rows),1,80);
+  view.x=(W-S.cols*view.scale)/2;view.y=(H-S.rows*view.scale)/2;
+  needRender=true;
+}
+function zoomAt(mx,my,f){
+  const ns=clamp(view.scale*f,1,80),k=ns/view.scale;
+  view.x=mx-(mx-view.x)*k;view.y=my-(my-view.y)*k;
+  view.scale=ns;needRender=true;
+}
+const BGS={dark:[16,20,29],black:[0,0,0],white:[255,255,255]};
+const bgColor=()=>`rgb(${BGS[S.bg][0]},${BGS[S.bg][1]},${BGS[S.bg][2]})`;
+let _ageTint=true;
+function agedRGB(r,g,b,age){
+  if(!_ageTint||age===0)return[r,g,b];
+  const f=Math.min(age,120)/120,lum=0.2126*r+0.7152*g+0.0722*b;
+  const sm=1+0.08*f,br=1+0.04*f;
+  const adj=v=>clamp(Math.round((v*sm+lum*(1-sm))*br),0,255);
+  return[adj(r),adj(g),adj(b)];
+}
+const heatColor=v=>`hsl(${(240*(1-v)).toFixed(0)},85%,${(50+10*v).toFixed(0)}%)`;
+
+function paintCells(g,cs,ox,oy,W,H,buf,ghosts){
+  const R=S.rows,C=S.cols,gapPx=Math.min(S.gap,cs*0.4);
+  g.fillStyle=bgColor();g.fillRect(ox,oy,C*cs,R*cs);
+  const c0=clamp(Math.floor(-ox/cs),0,C),c1=clamp(Math.ceil((W-ox)/cs),0,C);
+  const r0=clamp(Math.floor(-oy/cs),0,R),r1=clamp(Math.ceil((H-oy)/cs),0,R);
+  for(let r=r0;r<r1;r++){
+    const y=oy+r*cs;
+    for(let c=c0;c<c1;c++){
+      const i=r*C+c;
+      let ar,ag_,ab,alpha=1;
+      if(buf.alive[i]){
+        [ar,ag_,ab]=agedRGB(buf.r[i],buf.g[i],buf.b[i],buf.age[i]);
+      }else if(ghosts&&buf.fade[i]>0){
+        ar=buf.r[i];ag_=buf.g[i];ab=buf.b[i];alpha=buf.fade[i];
+      }else continue;
+      g.globalAlpha=alpha;
+      g.fillStyle=`rgb(${ar},${ag_},${ab})`;
+      g.fillRect(ox+c*cs,y,Math.max(0.5,cs-gapPx),Math.max(0.5,cs-gapPx));
+    }
+  }
+  g.globalAlpha=1;
+}
+
+/* ── smooth path: 1 px/cell offscreen buffer, blitted with interpolation ── */
+const pix=document.createElement('canvas');
+const pctx=pix.getContext('2d');
+let pixData=null;
+function paintCellsSmooth(g,cs,ox,oy,W,H,buf,ghosts){
+  const R=S.rows,C=S.cols;
+  if(pix.width!==C||pix.height!==R){pix.width=C;pix.height=R;pixData=null;}
+  if(!pixData)pixData=pctx.createImageData(C,R);
+  const d=pixData.data,bg=BGS[S.bg];
+  for(let i=0;i<N;i++){
+    const o=i*4;
+    if(buf.alive[i]){
+      const ac=agedRGB(buf.r[i],buf.g[i],buf.b[i],buf.age[i]);
+      d[o]=ac[0];d[o+1]=ac[1];d[o+2]=ac[2];d[o+3]=255;
+    }else if(ghosts&&buf.fade[i]>0){
+      d[o]=buf.r[i];d[o+1]=buf.g[i];d[o+2]=buf.b[i];
+      d[o+3]=(buf.fade[i]*255)|0;
+    }else{
+      d[o]=bg[0];d[o+1]=bg[1];d[o+2]=bg[2];d[o+3]=255;
+    }
+  }
+  pctx.putImageData(pixData,0,0);
+  g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
+  g.drawImage(pix,ox,oy,C*cs,R*cs);
+  g.imageSmoothingEnabled=false;
+}
+
+function paintMask(g,cs,ox,oy,W,H){
+  const R=S.rows,C=S.cols;
+  g.fillStyle='#0d1119';g.fillRect(ox,oy,C*cs,R*cs);
+  const c0=clamp(Math.floor(-ox/cs),0,C),c1=clamp(Math.ceil((W-ox)/cs),0,C);
+  const r0=clamp(Math.floor(-oy/cs),0,R),r1=clamp(Math.ceil((H-oy)/cs),0,R);
+  for(let r=r0;r<r1;r++)for(let c=c0;c<c1;c++){
+    const i=r*C+c;
+    g.fillStyle=lock[i]?'#ffb454':'#33415e';
+    g.fillRect(ox+c*cs,oy+r*cs,cs+0.04,cs+0.04);
+  }
+}
+function paintHeat(g,cs,ox,oy,W,H){
+  const R=S.rows,C=S.cols;
+  g.fillStyle='#0d1119';g.fillRect(ox,oy,C*cs,R*cs);
+  const c0=clamp(Math.floor(-ox/cs),0,C),c1=clamp(Math.ceil((W-ox)/cs),0,C);
+  const r0=clamp(Math.floor(-oy/cs),0,R),r1=clamp(Math.ceil((H-oy)/cs),0,R);
+  for(let r=r0;r<r1;r++)for(let c=c0;c<c1;c++){
+    g.fillStyle=heatColor(importance[r*C+c]);
+    g.fillRect(ox+c*cs,oy+r*cs,cs+0.04,cs+0.04);
+  }
+}
+function label(g,txt,x,y,size,align='center'){
+  g.font=`700 ${size}px ui-monospace,Menlo,monospace`;
+  g.textAlign=align;g.textBaseline='middle';
+  g.lineWidth=Math.max(2,size/4.5);g.strokeStyle='rgba(0,0,0,.75)';
+  g.strokeText(txt,x,y);g.fillStyle='rgba(255,255,255,.94)';g.fillText(txt,x,y);
+}
+
+function render(){
+  const dpr=window.devicePixelRatio||1,W=wrap.clientWidth,H=wrap.clientHeight;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle='#0b0e14';ctx.fillRect(0,0,W,H);
+
+  $('#origBanner').style.display=S.view==='original'?'block':'none';
+  $('#maskBanner').style.display=S.view==='mask'?'block':'none';
+  $('#heatLegend').style.display=S.view==='heat'?'flex':'none';
+  $('#legendChips').style.display=S.view==='mask'&&view.scale>=7?'flex':'none';
+
+  if(S.view==='original'){
+    if(srcImg){
+      const s=Math.min(W/srcImg.width,H/srcImg.height)*0.92;
+      const dw=srcImg.width*s,dh=srcImg.height*s;
+      ctx.drawImage(srcImg,(W-dw)/2,(H-dh)/2,dw,dh);
+      ctx.strokeStyle='rgba(255,255,255,.2)';
+      ctx.strokeRect((W-dw)/2,(H-dh)/2,dw,dh);
+    }
+    $('#hud').textContent=`ORIGINAL · gen ${gen} preserved · phase ${phase}`;
+    return;
+  }
+
+  const cs=view.scale,bx=view.x,by=view.y;
+  const painter=S.smooth?paintCellsSmooth:paintCells;
+  if(S.view==='sim')painter(ctx,cs,bx,by,W,H,cur,true);
+  else if(S.view==='gen0')painter(ctx,cs,bx,by,W,H,gen0Snap,false);
+  else if(S.view==='mask')paintMask(ctx,cs,bx,by,W,H);
+  else paintHeat(ctx,cs,bx,by,W,H);
+
+  ctx.lineWidth=1;ctx.strokeStyle='rgba(255,255,255,.15)';
+  ctx.strokeRect(bx-.5,by-.5,S.cols*cs+1,S.rows*cs+1);
+
+  if($('#dbgGrid').checked&&cs>=4&&S.view!=='heat'){
+    ctx.strokeStyle=S.bg==='white'
+      ?`rgba(10,14,22,${S.gridAlpha})`
+      :`rgba(190,205,235,${S.gridAlpha})`;
+    ctx.lineWidth=1;ctx.beginPath();
+    const c0=clamp(Math.floor(-bx/cs),0,S.cols),c1=clamp(Math.ceil((W-bx)/cs),0,S.cols);
+    const r0=clamp(Math.floor(-by/cs),0,S.rows),r1=clamp(Math.ceil((H-by)/cs),0,S.rows);
+    for(let c=c0;c<=c1;c++){const x=Math.round(bx+c*cs)+.5;ctx.moveTo(x,Math.max(by,0));ctx.lineTo(x,Math.min(by+S.rows*cs,H));}
+    for(let r=r0;r<=r1;r++){const y=Math.round(by+r*cs)+.5;ctx.moveTo(Math.max(bx,0),y);ctx.lineTo(Math.min(bx+S.cols*cs,W),y);}
+    ctx.stroke();
+  }
+  if($('#dbgOutline').checked&&S.view==='sim'&&cs>=6){
+    ctx.strokeStyle='rgba(255,180,84,.55)';ctx.lineWidth=Math.max(1,cs*0.08);
+    const inset=Math.max(.6,cs*.09);
+    const c0=clamp(Math.floor(-bx/cs)-1,0,S.cols),c1=clamp(Math.ceil((W-bx)/cs)+1,0,S.cols);
+    const r0=clamp(Math.floor(-by/cs)-1,0,S.rows),r1=clamp(Math.ceil((H-by)/cs)+1,0,S.rows);
+    for(let r=r0;r<r1;r++)for(let c=c0;c<c1;c++)
+      if(lock[r*S.cols+c])
+        ctx.strokeRect(bx+c*cs+inset,by+r*cs+inset,cs-inset*2,cs-inset*2);
+  }
+  if(cs>=26){
+    const fs=clamp(cs*.3,8,11);
+    for(let c=0;c<S.cols;c++)label(ctx,String(c),bx+(c+.5)*cs,by-8,fs);
+    for(let r=0;r<S.rows;r++)label(ctx,String(r),bx-9,by+(r+.5)*cs,fs,'right');
+  }
+
+  if(bloomCount>0&&S.view==='sim'){
+    const c0=clamp(Math.floor(-bx/cs),0,S.cols),c1=clamp(Math.ceil((W-bx)/cs),0,S.cols);
+    const r0=clamp(Math.floor(-by/cs),0,S.rows),r1=clamp(Math.ceil((H-by)/cs),0,S.rows);
+    for(let r=r0;r<r1;r++)for(let c=c0;c<c1;c++){
+      const i=r*S.cols+c,b=bloomFx[i];
+      if(b<=0.02)continue;
+      const s=cs*(1+0.25*Math.min(1,b));
+      ctx.globalAlpha=Math.min(0.65,b*0.5);
+      ctx.fillStyle=mutantMask[i]?'#fff1c9':'#d9f1ff';
+      ctx.fillRect(bx+c*cs+cs/2-s/2,by+r*cs+cs/2-s/2,s,s);
+    }
+    ctx.globalAlpha=1;
+  }
+  if(phase==='restored'&&lastRecMode==='memory'&&S.shimmer&&mutantCount>0&&S.view==='sim'){
+    const t=performance.now();
+    const c0=clamp(Math.floor(-bx/cs),0,S.cols),c1=clamp(Math.ceil((W-bx)/cs),0,S.cols);
+    const r0=clamp(Math.floor(-by/cs),0,S.rows),r1=clamp(Math.ceil((H-by)/cs),0,S.rows);
+    for(let r=r0;r<r1;r++)for(let c=c0;c<c1;c++){
+      const i=r*S.cols+c;
+      if(!mutantMask[i])continue;
+      const a=0.04+0.055*(0.5+0.5*Math.sin(t*0.0028+r*0.9+c*0.45));
+      ctx.globalAlpha=a;ctx.fillStyle='#ffedc2';
+      ctx.fillRect(bx+c*cs,by+r*cs,Math.max(0.5,cs-Math.min(S.gap,cs*0.4)),Math.max(0.5,cs-Math.min(S.gap,cs*0.4)));
+    }
+    ctx.globalAlpha=1;
+  }
+
+  const hl=pinned??(S.debug()?hover:null);
+  if(hl){
+    ctx.lineWidth=pinned?2.5:2;
+    ctx.strokeStyle=pinned?'#6bd6e8':'rgba(255,210,122,.8)';
+    ctx.strokeRect(bx+hl.c*cs+1,by+hl.r*cs+1,cs-2,cs-2);
+  }
+  $('#hud').textContent=
+    `Gen ${gen} · ${phase.toUpperCase()}${stopReason&&phase!=='idle'?` (${stopReason}${loopPeriod?' ·p'+loopPeriod:''})`:''} · ${view.scale.toFixed(1)}px`;
+}
+S.debug=()=>$('#dbgOn').checked;
+
+/* ═════════════════ INSPECTOR ═════════════════ */
+function nbCount(r,c){
+  let n=0;
+  for(let k=0;k<8;k++){
+    const rr=r+NB[k][0],cc=c+NB[k][1];
+    if(rr<0||cc<0||rr>=S.rows||cc>=S.cols)continue;
+    if(cur.alive[rr*S.cols+cc])n++;
+  }
+  return n;
+}
+function inspectorUpdate(){
+  const cell=pinned??(S.debug()?hover:null);
+  const empty=$('#insEmpty'),body=$('#insBody');
+  if(!cell||!cur){empty.hidden=false;body.hidden=true;return;}
+  if(!S.debug()&&!pinned){empty.hidden=false;empty.textContent='Debug Mode is off — enable it above.';body.hidden=true;return;}
+  empty.hidden=true;body.hidden=false;
+  const i=cell.r*S.cols+cell.c,L=!!lock[i],al=!!cur.alive[i],fd=cur.fade[i];
+  $('#insCell').textContent=`CELL (${cell.r}, ${cell.c})`;
+  $('#insRow').textContent=cell.r;$('#insCol').textContent=cell.c;
+  const st=L?'LOCKED':al?'ALIVE':(fd>0?'DYING · FADING':'DEAD');
+  const cls='val '+(L?'st-lock':al?'st-alive':fd>0?'st-fading':'st-dead');
+  $('#insState').textContent=st;$('#insState').className=cls;
+  $('#insStatus').textContent=st;$('#insStatus').className=cls;
+  $('#insLock').textContent=L?'YES — SKELETON':(mutantMask&&mutantMask[i]?'NO — MUTANT':'NO — EVOLVING');
+  $('#insLock').className='val '+(L?'st-lock':'st-alive');
+  $('#insNb').textContent=nbCount(cell.r,cell.c)+' / 8';
+  if(L||al){
+    $('#insSwatch').style.background=rgbHex(cur.r[i],cur.g[i],cur.b[i]);
+    $('#insCurHex').textContent=rgbHex(cur.r[i],cur.g[i],cur.b[i])+(al&&!L&&cur.age[i]>0?` · age ${cur.age[i]}`:'');
+    $('#insCur').textContent=`${cur.r[i]}, ${cur.g[i]}, ${cur.b[i]}`;
+  }else{
+    $('#insSwatch').style.background=`rgba(${cur.r[i]},${cur.g[i]},${cur.b[i]},${fd})`;
+    $('#insCurHex').textContent=fd>0?`ghost @ ${(fd*100)|0}%`:'—';
+    $('#insCur').textContent=fd>0?`${cur.r[i]}, ${cur.g[i]}, ${cur.b[i]} @ ${(fd*100)|0}%`:'—';
+  }
+  $('#insOSwatch').style.background=rgbHex(oR[i],oG[i],oB[i]);
+  $('#insOHex').textContent=rgbHex(oR[i],oG[i],oB[i]);
+  $('#insOrig').textContent=`${oR[i]}, ${oG[i]}, ${oB[i]}`;
+  $('#mImp i').style.width=(importance[i]*100)+'%';
+  $('#insImpV').textContent=importance[i].toFixed(2);
+  $('#mFade i').style.width=(fd*100)+'%';
+  $('#insFadeV').textContent=fd.toFixed(2);
+  $('#insAge').textContent=al&&!L?cur.age[i]+' gen':(L?'∞ (locked)':'0');
+}
+
+/* ═════════════════ POINTER ═════════════════ */
+function canvasPos(e){const rc=canvas.getBoundingClientRect();return{x:e.clientX-rc.left,y:e.clientY-rc.top};}
+function cellAt(x,y){
+  const c=Math.floor((x-view.x)/view.scale),r=Math.floor((y-view.y)/view.scale);
+  return(r<0||c<0||r>=S.rows||c>=S.cols)?null:{r,c};
+}
+canvas.addEventListener('pointerdown',e=>{
+  canvas.setPointerCapture(e.pointerId);
+  const p=canvasPos(e);
+  drag={sx:p.x,sy:p.y,vx:view.x,vy:view.y,moved:false};
+  canvas.className='grabbing';
+});
+canvas.addEventListener('pointermove',e=>{
+  const p=canvasPos(e),cell=cellAt(p.x,p.y);
+  if(drag){
+    if(Math.abs(p.x-drag.sx)+Math.abs(p.y-drag.sy)>3)drag.moved=true;
+    if(drag.moved){view.x=drag.vx+(p.x-drag.sx);view.y=drag.vy+(p.y-drag.sy);needRender=true;}
+  }
+  if((hover&&!cell)||(!hover&&cell)||(hover&&cell&&(hover.r!==cell.r||hover.c!==cell.c))){
+    hover=cell;if(S.debug())inspectorUpdate();needRender=true;
+  }
+});
+canvas.addEventListener('pointerup',e=>{
+  if(drag&&!drag.moved){
+    const cell=cellAt(canvasPos(e).x,canvasPos(e).y);
+    pinned=(cell&&pinned&&pinned.r===cell.r&&pinned.c===cell.c)?null:cell;
+    inspectorUpdate();needRender=true;
+  }
+  drag=null;canvas.className='grab';
+});
+canvas.addEventListener('pointercancel',()=>{drag=null;canvas.className='grab';});
+canvas.addEventListener('pointerleave',()=>{hover=null;if(S.debug())inspectorUpdate();needRender=true;});
+canvas.addEventListener('wheel',e=>{
+  e.preventDefault();const p=canvasPos(e);
+  zoomAt(p.x,p.y,Math.exp(-e.deltaY*0.0016));
+},{passive:false});
+$('#btnZoomIn').addEventListener('click',()=>zoomAt(wrap.clientWidth/2,wrap.clientHeight/2,1.3));
+$('#btnZoomOut').addEventListener('click',()=>zoomAt(wrap.clientWidth/2,wrap.clientHeight/2,1/1.3));
+$('#btnFit').addEventListener('click',fitView);
+
+/* ═════════════════ UI BINDINGS ═════════════════ */
+function bindSeg(el,fn){
+  el.addEventListener('click',e=>{
+    const b=e.target.closest('button[data-v]');if(!b)return;
+    el.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));
+    fn(b.dataset.v);
+  });
+}
+function updateSndStat(){$('#sndStat').textContent='engine: '+AudioFX.status();}
+
+bindSeg($('#dimPresets'),v=>setDims(+v, S.aspect?aspectCols(+v):+v));
+bindSeg($('#bgSeg'),v=>{S.bg=v;needRender=true;});
+bindSeg($('#viewSeg'),v=>{S.view=v;needRender=true;
+  if(v==='original')toast('Comparison view — simulation untouched');});
+bindSeg($('#fillSeg'),v=>{
+  S.recFill=v;
+  $('#recHint').innerHTML=v==='memory'
+    ?'<b>MEMORY</b> (default): empty cells are recolonized by the <b>evolved colors of their restored neighbors</b> — the image reforms as a memory of its journey. Surviving mutants keep their colors and flare as the wave passes. ORIGINAL = classic Gen-0 restore.'
+    :'<b>ORIGINAL</b> (classic): every cell eases back to its originalColor — the exact Generation 0 image returns.';
+  toast(v==='memory'?'Reconstruction will rebuild from evolved colors (MEMORY)'
+                    :'Reconstruction will restore the exact Gen-0 image (ORIGINAL)');
+});
+bindSeg($('#recSeg'),v=>{
+  S.recMode=v;
+  toast(v==='outside'?'Wave seeded by the skeleton, moving inward'
+     :v==='center'?'Wave sweeps from the center outward'
+     :v==='random'?'Cells restore in random order'
+     :'Cells restore row by row');
+});
+
+$('#inRows').addEventListener('change',e=>setDims(+e.target.value,S.cols));
+$('#inCols').addEventListener('change',e=>setDims(S.rows,+e.target.value));
+function setDims(r,c){
+  r=clamp(Math.round(r)||16,8,192);c=clamp(Math.round(c)||16,8,192);
+  S.rows=r;S.cols=c;
+  $('#inRows').value=r;$('#inCols').value=c;
+  const pc=$$('#dimPresets button').find(b=>+b.dataset.v===r&&r===c);
+  $$('#dimPresets button').forEach(b=>b.classList.toggle('active',b===pc));
+  rebuildAll(true);
+}
+$('#inAspect').addEventListener('change',e=>{
+  S.aspect=e.target.checked;
+  if(S.aspect)setDims(S.rows,aspectCols(S.rows));
+});
+$('#inClar').addEventListener('input',e=>{
+  S.clarity=+e.target.value/100;
+  $('#clarOut').textContent=e.target.value+'%';
+});
+$('#inClar').addEventListener('change',()=>{
+  rebuildAll(true);
+  toast(`Detail clarity @ ${(S.clarity*100)|0}% — resampled, reset to Gen 0`);
+});
+$('#inStruct').addEventListener('input',e=>{
+  S.structPct=+e.target.value/100;
+  $('#structOut').textContent=e.target.value+'%';
+});
+$('#inStruct').addEventListener('change',()=>{
+  rebuildAll(true);
+  toast(`Structure @ ${(S.structPct*100)|0}% — mask rebuilt, reset to Gen 0`);
+});
+$('#inSens').addEventListener('input',e=>{
+  S.sens=+e.target.value/100;$('#sensOut').textContent=S.sens.toFixed(2)+'×';
+});
+$('#inSens').addEventListener('change',()=>{
+  rebuildAll(true);
+  toast(`Edge sensitivity ${S.sens.toFixed(2)}× — analysis rebuilt, reset to Gen 0`);
+});
+$('#inStrength').addEventListener('input',e=>{
+  S.survival=+e.target.value/100;$('#strOut').textContent=S.survival.toFixed(2);
+});
+$('#inGap').addEventListener('input',e=>{S.gap=+e.target.value;$('#gapOut').textContent=S.gap+' px';needRender=true;});
+$('#inGAlpha').addEventListener('input',e=>{S.gridAlpha=+e.target.value/100;$('#gAlphaOut').textContent=e.target.value+'%';needRender=true;});
+$('#inFade').addEventListener('input',e=>{S.fadeStep=+e.target.value/100;$('#fadeOut').textContent=S.fadeStep.toFixed(2)+'/g';});
+$('#inRecSpd').addEventListener('input',e=>{S.recMult=+e.target.value/100;$('#recSpdOut').textContent='×'+S.recMult.toFixed(1);});
+$('#inSpeed').addEventListener('input',e=>{S.speed=+e.target.value;$('#speedOut').textContent=S.speed+' gps';});
+[['dbgGrid'],['dbgAge'],['dbgOutline'],['dbgShimmer'],['dbgSmooth']].forEach(([id])=>
+  $('#'+id).addEventListener('change',()=>{
+    if(id==='dbgAge')_ageTint=$('#dbgAge').checked;
+    if(id==='dbgSmooth')S.smooth=$('#dbgSmooth').checked;
+    needRender=true;
+  }));
+$('#dbgOn').addEventListener('change',()=>{needRender=true;inspectorUpdate();});
+
+/* ── audio bindings ── */
+$('#sndOn').addEventListener('change',e=>{
+  const ok=AudioFX.setEnabled(e.target.checked);
+  if(e.target.checked&&!ok){e.target.checked=false;toast('Web Audio unavailable in this browser — continuing silently');}
+  else if(e.target.checked){AudioFX.test();toast('Sound on — you should hear a test chime');}
+  updateSndStat();
+});
+$('#sndTest').addEventListener('click',()=>{
+  const box=$('#sndOn');
+  if(!box.checked){box.checked=true;const ok=AudioFX.setEnabled(true);if(!ok){box.checked=false;toast('Web Audio unavailable');updateSndStat();return;}}
+  AudioFX.test();
+  updateSndStat();
+});
+$('#sndVol').addEventListener('input',e=>{
+  $('#sndVolOut').textContent=e.target.value+'%';
+  AudioFX.setVol(+e.target.value/100);
+});
+$('#sndBirth').addEventListener('change',e=>AudioFX.setOpt('births',e.target.checked));
+$('#sndDeath').addEventListener('change',e=>AudioFX.setOpt('deaths',e.target.checked));
+$('#sndRec').addEventListener('change',e=>AudioFX.setOpt('recon',e.target.checked));
+$('#sndDrone').addEventListener('change',e=>AudioFX.setOpt('drone',e.target.checked));
+$('#sndDroneVol').addEventListener('input',e=>{
+  $('#sndDroneVolOut').textContent=e.target.value+'%';
+  AudioFX.setDroneVol(+e.target.value/100);
+});
+
+window.addEventListener('keydown',e=>{
+  const tag=e.target.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
+  if(e.code==='Space'){e.preventDefault();setPlaying(!S.playing);}
+  else if(e.key==='ArrowRight'){setPlaying(false);pushNext();}
+  else if(e.key==='r'||e.key==='R')resetToGen0(true);
+  else if(e.key==='y'||e.key==='Y')replay();
+  else if(e.key==='c'||e.key==='C')manualReconstruct();
+  else if(e.key==='f'||e.key==='F')fitView();
+  else if(e.key==='Escape'){pinned=null;inspectorUpdate();needRender=true;}
+});
+
+/* ═════════════════ FILE INTAKE ═════════════════ */
+$('#btnBrowse').addEventListener('click',()=>$('#fileInput').click());
+$('#fileInput').addEventListener('change',e=>{const f=e.target.files[0];if(f)loadFile(f);e.target.value='';});
+function loadFile(f){
+  if(!/^image\/(png|jpeg|webp)$/.test(f.type)){toast('Unsupported file — use PNG, JPG or WEBP');return;}
+  const url=URL.createObjectURL(f),img=new Image();
+  img.onload=()=>{URL.revokeObjectURL(url);setSource(img,f.name);};
+  img.onerror=()=>{URL.revokeObjectURL(url);toast('Could not decode that image');};
+  img.src=url;
+}
+['dragover','drop'].forEach(ev=>window.addEventListener(ev,e=>e.preventDefault()));
+window.addEventListener('drop',e=>{const f=e.dataTransfer.files&&e.dataTransfer.files[0];if(f)loadFile(f);});
+
+/* ═════════════════ SAMPLE IMAGE ═════════════════ */
+function makeSampleImage(){
+  const c=document.createElement('canvas');c.width=520;c.height=390;
+  const g=c.getContext('2d');
+  const sky=g.createLinearGradient(0,0,0,280);
+  sky.addColorStop(0,'#2b1b54');sky.addColorStop(.42,'#a63d6b');
+  sky.addColorStop(.75,'#ff8f4d');sky.addColorStop(1,'#ffd66b');
+  g.fillStyle=sky;g.fillRect(0,0,520,280);
+  g.fillStyle='#ffe9a3';g.beginPath();g.arc(355,195,46,0,7);g.fill();
+  g.fillStyle='#fff7dd';g.beginPath();g.arc(355,195,34,0,7);g.fill();
+  g.fillStyle='rgba(255,255,255,0.16)';
+  [[90,70,70,14],[190,110,90,12],[420,60,60,11],[300,40,80,10]].forEach(([x,y,rx,ry])=>{
+    g.beginPath();g.ellipse(x,y,rx,ry,0,0,7);g.fill();});
+  g.fillStyle='#6d3a7d';g.beginPath();g.moveTo(0,280);g.lineTo(70,170);g.lineTo(160,280);g.closePath();g.fill();
+  g.fillStyle='#472a63';g.beginPath();g.moveTo(90,280);g.lineTo(230,130);g.lineTo(380,280);g.closePath();g.fill();
+  g.fillStyle='#2c1b47';g.beginPath();g.moveTo(280,280);g.lineTo(430,180);g.lineTo(520,280);g.closePath();g.fill();
+  const sea=g.createLinearGradient(0,280,0,390);
+  sea.addColorStop(0,'#3b2160');sea.addColorStop(1,'#1d1440');
+  g.fillStyle=sea;g.fillRect(0,280,520,110);
+  g.fillStyle='rgba(255,207,122,0.35)';
+  for(let i=0;i<7;i++){const wd=90-i*10;g.fillRect(355-wd/2,290+i*14,wd,5);}
+  g.strokeStyle='rgba(30,20,50,0.85)';g.lineWidth=2;
+  [[120,95],[145,85],[168,98]].forEach(([x,y])=>{
+    g.beginPath();g.arc(x-6,y,7,Math.PI,0);g.arc(x+6,y,7,Math.PI,0);g.stroke();});
+  return c;
+}
+
+/* ═════════════════ EXPORT ═════════════════ */
+$('#expPng').addEventListener('click',()=>{
+  const cell=clamp(Math.floor(4096/Math.max(S.rows,S.cols)),2,80);
+  const ec=document.createElement('canvas');
+  ec.width=S.cols*cell;ec.height=S.rows*cell;
+  const g=ec.getContext('2d');
+  if(S.view==='original'&&srcImg){
+    g.drawImage(srcImg,0,0,ec.width,ec.height);
+  }else if(S.view==='mask')paintMask(g,cell,0,0,ec.width,ec.height);
+  else if(S.view==='heat')paintHeat(g,cell,0,0,ec.width,ec.height);
+  else (S.smooth?paintCellsSmooth:paintCells)(g,cell,0,0,ec.width,ec.height,S.view==='gen0'?gen0Snap:cur,S.view==='sim');
+  ec.toBlob(b=>{
+    const u=URL.createObjectURL(b),a=document.createElement('a');
+    a.href=u;a.download=`image-evolution-gen${gen}.png`;a.click();
+    setTimeout(()=>URL.revokeObjectURL(u),4000);
+    toast('PNG exported');
+  },'image/png');
+});
+
+/* ═════════════════ MAIN LOOP ═════════════════ */
+let lastT=performance.now(),acc=0;
+function frame(t){
+  const dt=Math.min(250,t-lastT);lastT=t;
+  if(S.playing&&(phase==='running')){
+    acc+=dt;
+    const iv=1000/S.speed;let guard=0;
+    while(acc>=iv&&guard<40){pushNext();acc-=iv;guard++;if(phase!=='running')break;}
+    if(guard>=40)acc=0;
+  }else acc=0;
+  if(phase==='reconstructing')advanceRecon(dt);
+  bloomDecay(dt);
+  if(needRender||S.playing||phase==='reconstructing'||bloomCount>0){render();needRender=false;}
+  requestAnimationFrame(frame);
+}
+
+/* ═════════════════ INIT ═════════════════ */
+sizeCanvas();
+setSource(makeSampleImage(),'sample-sunset.png');
+requestAnimationFrame(t=>{lastT=t;requestAnimationFrame(frame);});
+</script>
+</body>
+</html>
