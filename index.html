@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title></title>
-<meta name="description" content="Upload an image and watch it dissolve and reform through a structure-preserving cellular automaton — the skeleton holds, the interior evolves, and its own colors rebuild it.">
+<meta name="description" content="Upload an image and watch it dissolve and reform through a structure-preserving cellular automaton — the skeleton holds, the interior evolves, and its own patches rebuild it.">
 <meta property="og:title" content="Image Evolution">
 <meta property="og:description" content="A living Game-of-Life reconstruction of your image — structure remains, interior evolves.">
 <meta property="og:image" content="logo.png">
@@ -63,6 +63,11 @@
   .btn:active:not(:disabled){transform:translateY(1px)}
   .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none}
   .btn + .btn{margin-top:8px}
+  /* ── video recorder: live recording state ── */
+  .btn.rec{background:linear-gradient(135deg,#e2564a,#b8302a);color:#fff;border:none;animation:recPulse 1.4s ease-in-out infinite}
+  @keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(226,86,74,.35)}50%{box-shadow:0 0 0 7px rgba(226,86,74,0)}}
+  #recStatus{color:#6b4a1f}
+  #recStatus.live{color:#e2564a;font-weight:700}
 
   .seg{display:flex;background:#fff8ee;border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px;flex-wrap:wrap}
   .seg button{flex:1;padding:7px 4px;border-radius:7px;font-size:11.5px;font-weight:600;color:var(--muted);
@@ -209,7 +214,7 @@
         <output id="structOut">35%</output>
       </div>
       <label class="switch"><input type="checkbox" id="dbgOutline"><span class="tg"></span>Outline locked cells in SIM view</label>
-      <p class="hint">Strongest contours become a <b>permanent skeleton</b>: always alive, original color, unkillable. With clarity on, eyes and lips are strong lock candidates.</p>
+      <p class="hint">Strongest contours become a <b>permanent skeleton</b>: always alive, original patch, unkillable. With clarity on, eyes and lips are strong lock candidates.</p>
     </section>
 
     <section class="card">
@@ -264,7 +269,7 @@
       <label class="switch" style="margin-top:6px"><input type="checkbox" id="dbgShimmer" checked><span class="tg"></span>Mutant shimmer after restore</label>
       <div class="slider-label"><span>Wave speed</span></div>
       <div class="slider-row"><input type="range" id="inRecSpd" min="25" max="400" value="100"><output id="recSpdOut">×1.0</output></div>
-      <p class="hint" id="recHint"><b>MEMORY</b> (default): empty cells are recolonized by the <b>evolved colors of their restored neighbors</b> — the image reforms as a memory of its journey. Surviving mutants keep their colors and flare as the wave passes. ORIGINAL = classic Gen-0 restore.</p>
+      <p class="hint" id="recHint"><b>MEMORY</b> (default): empty cells are recolonized by the <b>evolved image patches of their restored neighbors</b> — the image reforms as a memory of its journey. Surviving mutants keep their patches and flare as the wave passes. ORIGINAL = classic Gen-0 restore.</p>
     </section>
 
     <section class="card">
@@ -338,7 +343,7 @@
         <dt>Locked skeleton</dt>     <dd id="stLock" class="mono">–</dd>
         <dt>Alive (interior)</dt>    <dd id="stAlive" class="mono">–</dd>
         <dt>Fading ghosts</dt>       <dd id="stFading" class="mono">–</dd>
-        <dt>Mutated colors</dt>      <dd id="stMut" class="mono">–</dd>
+        <dt>Mutated patches</dt>     <dd id="stMut" class="mono">–</dd>
       </dl>
     </section>
 
@@ -380,6 +385,29 @@
           <dt>Age</dt>            <dd id="insAge" class="mono">–</dd>
         </dl>
       </div>
+    </section>
+
+    <section class="card">
+      <h2>Video Recording <small>canvas · webm/mp4</small></h2>
+      <div class="slider-label"><span>Frame rate</span></div>
+      <div class="seg" id="recFpsSeg" style="margin-top:6px">
+        <button data-v="30" class="active">30 FPS</button>
+        <button data-v="60">60 FPS</button>
+      </div>
+      <div class="slider-label"><span>Quality</span></div>
+      <div class="seg" id="recQualSeg" style="margin-top:6px">
+        <button data-v="standard" class="active">STANDARD</button>
+        <button data-v="high">HIGH</button>
+        <button data-v="max">MAXIMUM</button>
+      </div>
+      <div style="margin-top:10px">
+        <button class="btn primary" id="btnRecStart">● Start Recording</button>
+        <button class="btn" id="btnRecStop" disabled>■ Stop Recording</button>
+        <button class="btn" id="btnRecDownload" disabled>⬇ Download Recording</button>
+      </div>
+      <p class="hint mono" id="recStatus">not recording</p>
+      <p class="hint" id="recFormat">—</p>
+      <p class="hint">Records ONLY the actual image/simulation at its native aspect ratio — no sidebars, toolbar, HUD or margins. Playback, zoom, pan and reconstruction continue while recording.</p>
     </section>
 
     <section class="card">
@@ -435,11 +463,19 @@ const S={
 };
 let srcImg=null;
 
-/* static per-cell data (set once per image/grid/analysis): */
+/* static per-cell data (set once per image/grid/analysis):
+   - regions: each CA cell owns the source-image rectangle RX0/RY0/RW/RH
+     inside the `work` canvas. A cell "is" a region id; rendering draws
+     the REAL source pixels of that region via drawImage.
+   - regR/G/B: per-region average color, kept ONLY as metadata for the
+     inspector, importance/mutation statistics and reconstruction hints. */
 let N=0, lock=null, lockCount=0, importance=null, oR=null,oG=null,oB=null;
+let RX0=null,RY0=null,RW=null,RH=null;
+let regR=null,regG=null,regB=null;
 
-/* DOUBLE BUFFERED dynamic state: */
-function makeBuf(){return{alive:new Uint8Array(N),r:new Uint8Array(N),g:new Uint8Array(N),b:new Uint8Array(N),
+/* DOUBLE BUFFERED dynamic state — every cell now stores a REGION id
+   (which source-image patch it currently carries) instead of an RGB. */
+function makeBuf(){return{alive:new Uint8Array(N),region:new Uint16Array(N),
   fade:new Float32Array(N),age:new Uint16Array(N)};}
 let cur=null,nxt=null,gen0Snap=null;
 
@@ -474,6 +510,10 @@ const AudioFX=(()=>{
   /* population drone layer: two detuned oscillators through a lowpass,
      pitch + brightness + gain all track live population fraction */
   let drone=null, droneTarget=0, dronePop=0;
+
+  /* optional video-recording tap: a MediaStreamDestination connected to
+     the existing master bus (speakers path untouched → no double audio) */
+  let capDest=null;
 
   const ready=()=>cfg.enabled&&ctx&&ctx.state==='running';
 
@@ -715,8 +755,31 @@ const AudioFX=(()=>{
     return ctx.state;
   }
 
+  /* ── optional capture for the video recorder ──
+     Returns a MediaStream (or null) whose audio comes from the existing
+     master bus. The speakers path stays connected, so output to the user
+     is preserved and there is no double playback. */
+  function getRecordStream(){
+    if(!ctx)return null;
+    try{
+      if(!capDest){
+        capDest=ctx.createMediaStreamDestination();
+        if(master)master.connect(capDest);
+      }
+      return capDest.stream;
+    }catch(e){return null;}
+  }
+  function releaseRecordStream(){
+    if(!capDest)return;
+    try{
+      if(master)master.disconnect(capDest);
+      capDest.stream.getTracks().forEach(t=>t.stop());
+    }catch(e){}
+    capDest=null;
+  }
+
   return {setEnabled,setVol,setOpt,setDroneVol,generationEvent,complete,reconStart,reconProgress,reconDone,
-          droneUpdate,stopDrone:droneStop,stopAll,test,wake,status};
+          droneUpdate,stopDrone:droneStop,stopAll,test,wake,status,getRecordStream,releaseRecordStream};
 })();
 
 /* wake the audio engine on ANY interaction if the browser suspended it */
@@ -757,12 +820,12 @@ function aspectCols(rows){
   return clamp(Math.round(rows*work.width/work.height),8,192);
 }
 
-/* ═════════════════ LIKENESS-AWARE SAMPLING ═════════════════
-   1) average each cell in LINEAR light (truer tones, no muddy midtones)
-   2) find each region's most DISTANT pixel from its mean (the "detail
-      anchor" — the dark pupil, the bright earring, the lip edge)
-   3) pull the cell color toward that anchor by clarity × detail strength
-   → eyes/lips/outlines survive averaging instead of dissolving into skin */
+/* ═════════════════ ANALYSIS SAMPLING ═════════════════
+   NOTE: this no longer defines what a cell LOOKS like.
+   Cells render their real source-region patch (see painters).
+   `sampleAverages` still produces one average color per region,
+   used ONLY as metadata: original-color display in the inspector,
+   edge/importance analysis, structural locking and mutation stats. */
 function sampleAverages(R,C,clarity){
   const w=work.width,h=work.height;
   const d=wctx.getImageData(0,0,w,h).data;
@@ -797,6 +860,21 @@ function sampleAverages(R,C,clarity){
     out[o+2]=Math.round(mb+(az-mb)*k);
   }
   return out;
+}
+
+/* Build the per-region SOURCE RECTANGLES into the `work` canvas.
+   Region i (r,c) owns the REAL pixels:
+     x0=floor(c*W/C) .. ceil((c+1)*W/C), y0=floor(r*H/R) .. ceil((r+1)*H/R)
+   For 1024×1024 with 128×128: cell (20,30) → x 240..247, y 160..167. */
+function buildRegionRects(){
+  const R=S.rows,C=S.cols,w=work.width,h=work.height;
+  RX0=new Uint16Array(N);RY0=new Uint16Array(N);RW=new Uint16Array(N);RH=new Uint16Array(N);
+  for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+    const i=r*C+c;
+    const sx0=Math.floor(c*w/C),sx1=Math.min(w,Math.ceil((c+1)*w/C));
+    const sy0=Math.floor(r*h/R),sy1=Math.min(h,Math.ceil((r+1)*h/R));
+    RX0[i]=sx0;RY0[i]=sy0;RW[i]=sx1-sx0;RH[i]=sy1-sy0;
+  }
 }
 
 const pdist=(a,i,j)=>{
@@ -863,6 +941,9 @@ function applyLockMask(edge,R,C){
 function rebuildAll(fit){
   N=S.rows*S.cols;
   const avg=sampleAverages(S.rows,S.cols,S.clarity);
+  buildRegionRects();
+  regR=new Uint8Array(N);regG=new Uint8Array(N);regB=new Uint8Array(N);
+  for(let i=0;i<N;i++){regR[i]=avg[i*3];regG[i]=avg[i*3+1];regB[i]=avg[i*3+2];}
   const edge=computeEdges(avg,S.rows,S.cols,S.sens);
   importance=computeImportance(avg,S.rows,S.cols,S.sens);
   oR=new Uint8Array(N);oG=new Uint8Array(N);oB=new Uint8Array(N);
@@ -873,10 +954,9 @@ function rebuildAll(fit){
   bloomCount=0; mutantCount=0;
   cur=makeBuf();nxt=makeBuf();
   for(let i=0;i<N;i++){
-    cur.alive[i]=1;cur.fade[i]=1;
-    cur.r[i]=oR[i];cur.g[i]=oG[i];cur.b[i]=oB[i];
+    cur.alive[i]=1;cur.fade[i]=1;cur.region[i]=i;   /* Gen 0: every cell = its own source region */
   }
-  gen0Snap={alive:cur.alive.slice(),r:cur.r.slice(),g:cur.g.slice(),b:cur.b.slice(),
+  gen0Snap={alive:cur.alive.slice(),region:cur.region.slice(),
             fade:cur.fade.slice(),age:cur.age.slice()};
   resetToGen0(false);
   if(fit)fitView();
@@ -884,8 +964,8 @@ function rebuildAll(fit){
 
 function resetToGen0(fit){
   userFlow++;
-  cur.alive.set(gen0Snap.alive);cur.r.set(gen0Snap.r);cur.g.set(gen0Snap.g);
-  cur.b.set(gen0Snap.b);cur.fade.set(gen0Snap.fade);cur.age.set(gen0Snap.age);
+  cur.alive.set(gen0Snap.alive);cur.region.set(gen0Snap.region);
+  cur.fade.set(gen0Snap.fade);cur.age.set(gen0Snap.age);
   gen=0;stopReason='';loopPeriod=0;
   seenMap.clear();seenList=[];
   recon=null;
@@ -898,7 +978,11 @@ function resetToGen0(fit){
 }
 
 /* ═════════════════ SIMULATION STEP (double buffered) ═════════════════
-   Reads only `cur`, writes only `nxt`, atomic swap at the end. */
+   Reads only `cur`, writes only `nxt`, atomic swap at the end.
+   Cells carry REGION ids (source-image patches):
+     lock  → forced back to its own original region
+     birth → inherits the parent's region (lineage patch copy)
+     death → keeps region; ghost renders that patch while fading */
 const NB=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
 
 function packNonLockedBits(){
@@ -929,7 +1013,7 @@ function findRepeat(u){
 function step(){
   const R=S.rows,C=S.cols,a=cur.alive,fs=S.fadeStep;
   const na=nxt.alive;
-  na.set(a);nxt.r.set(cur.r);nxt.g.set(cur.g);nxt.b.set(cur.b);
+  na.set(a);nxt.region.set(cur.region);
   nxt.fade.set(cur.fade);nxt.age.set(cur.age);
   let births=0,deaths=0,impB=0,impD=0,anyInterior=false;
   for(let r=0;r<R;r++)for(let c=0;c<C;c++){
@@ -941,7 +1025,7 @@ function step(){
       if(a[rr*C+cc])n++;
     }
     if(lock[i]){
-      na[i]=1;nxt.r[i]=oR[i];nxt.g[i]=oG[i];nxt.b[i]=oB[i];
+      na[i]=1;nxt.region[i]=i;      /* locked skeleton → its ORIGINAL image region */
       nxt.fade[i]=1;nxt.age[i]=0;continue;
     }
     if(a[i]){
@@ -964,7 +1048,7 @@ function step(){
         if(a[j])parents.push(j);
       }
       const p=parents[(Math.random()*parents.length)|0];
-      na[i]=1;nxt.r[i]=cur.r[p];nxt.g[i]=cur.g[p];nxt.b[i]=cur.b[p];
+      na[i]=1;nxt.region[i]=cur.region[p];  /* inherit the parent's image patch */
       nxt.fade[i]=1;nxt.age[i]=0;
       births++;if(importance[i]>0.55)impB++;
     }else{
@@ -1064,8 +1148,8 @@ function setStatus(){
     s.innerHTML=`Reason: <b>${stopReason}</b>${loopPeriod?` · period ${loopPeriod} generations`:''}. Reconstruction starting…`;}
   else if(phase==='reconstructing'){t.textContent='RECONSTRUCTING…';col('var(--accent)');chip.textContent='REBUILDING';
     s.innerHTML=lastRecMode==='memory'
-      ?'The skeleton wave is recolonizing the interior with <b>evolved colors</b>. Mutants flare as the front passes.'
-      :'The skeleton is rebuilding the image back to its <b>original</b> pixelated colors.';}
+      ?'The skeleton wave is recolonizing the interior with <b>evolved image patches</b>. Mutants flare as the front passes.'
+      :'The skeleton is rebuilding the image back to its <b>original</b> pixelated patches.';}
   else{
     if(lastRecMode==='memory'){
       t.textContent='MEMORY RESTORED';col('var(--good)');chip.textContent='RESTORED';
@@ -1135,8 +1219,9 @@ function startReconstruction(){
   mutantMask.fill(0);mutantCount=0;
   for(let i=0;i<N;i++){
     if(lock[i])continue;
-    const dx=cur.r[i]-oR[i],dy=cur.g[i]-oG[i],dz=cur.b[i]-oB[i];
-    if((cur.alive[i]||cur.fade[i]>0)&&(dx*dx+dy*dy+dz*dz)>144){mutantMask[i]=1;mutantCount++;}
+    const reg=cur.region[i];
+    const dr=regR[reg]-oR[i],dg=regG[reg]-oG[i],db=regB[reg]-oB[i];
+    if((cur.alive[i]||cur.fade[i]>0)&&(dr*dr+dg*dg+db*db)>144){mutantMask[i]=1;mutantCount++;}
   }
   lastRecMode=S.recFill;
   recon={
@@ -1145,10 +1230,11 @@ function startReconstruction(){
     startT:new Float64Array(N).fill(-1),
     done:new Uint8Array(N),
     remaining:0,
-    snapR:cur.r.slice(),snapG:cur.g.slice(),snapB:cur.b.slice(),
+    snapRegion:cur.region.slice(),   /* the patch each cell had when the wave started */
     snapF:cur.fade.slice(),
     fromAlive:cur.alive.slice(),
-    tR:new Uint8Array(N),tG:new Uint8Array(N),tB:new Uint8Array(N),
+    tRegion:new Uint16Array(N),      /* target patch for each cell */
+    over:new Float32Array(N),        /* cross-fade progress snapshot→target (for painters) */
     dur:new Float32Array(N),
     mode:S.recFill,
   };
@@ -1157,7 +1243,7 @@ function startReconstruction(){
     if(lock[i])recon.done[i]=1;
     else{
       recon.remaining++;
-      if(recon.mode==='original'){recon.tR[i]=oR[i];recon.tG[i]=oG[i];recon.tB[i]=oB[i];}
+      if(recon.mode==='original')recon.tRegion[i]=i;   /* ORIGINAL → each cell back to its own patch */
     }
   }
   phase='reconstructing';setStatus();
@@ -1180,7 +1266,8 @@ function advanceRecon(dtMs){
     cur.alive[i]=1;
     if(recon.mode==='memory'){
       if(recon.fromAlive[i]){
-        recon.tR[i]=recon.snapR[i];recon.tG[i]=recon.snapG[i];recon.tB[i]=recon.snapB[i];
+        /* survivors keep their evolved lineage patch */
+        recon.tRegion[i]=recon.snapRegion[i];
       }else{
         const cand=[];
         const rr0=(i/S.cols)|0, cc0=i%S.cols;
@@ -1192,11 +1279,11 @@ function advanceRecon(dtMs){
         }
         if(cand.length){
           const j=cand[(Math.random()*cand.length)|0];
-          recon.tR[i]=cur.r[j];recon.tG[i]=cur.g[j];recon.tB[i]=cur.b[j];
+          recon.tRegion[i]=cur.region[j];   /* inherit a restored neighbor's image patch */
         }else if(recon.snapF[i]>0){
-          recon.tR[i]=recon.snapR[i];recon.tG[i]=recon.snapG[i];recon.tB[i]=recon.snapB[i];
+          recon.tRegion[i]=recon.snapRegion[i];   /* resurrect own ghost patch */
         }else{
-          recon.tR[i]=oR[i];recon.tG[i]=oG[i];recon.tB[i]=oB[i];
+          recon.tRegion[i]=i;               /* fall back to own original patch */
         }
       }
     }
@@ -1208,11 +1295,9 @@ function advanceRecon(dtMs){
     const st=recon.startT[i];
     if(st<0)continue;
     let m=(now-st)/recon.dur[i];
-    if(m>=1){m=1;recon.done[i]=1;recon.remaining--;}
+    if(m>=1){m=1;recon.done[i]=1;recon.remaining--;cur.region[i]=recon.tRegion[i];}
     const e=m*m*(3-2*m);
-    cur.r[i]=Math.round(recon.snapR[i]+(recon.tR[i]-recon.snapR[i])*e);
-    cur.g[i]=Math.round(recon.snapG[i]+(recon.tG[i]-recon.snapG[i])*e);
-    cur.b[i]=Math.round(recon.snapB[i]+(recon.tB[i]-recon.snapB[i])*e);
+    recon.over[i]=e;                          /* painters cross-fade snapshot patch → target */
     cur.fade[i]=recon.snapF[i]+(1-recon.snapF[i])*e;
     cur.alive[i]=1;
   }
@@ -1237,7 +1322,8 @@ function updateStats(){
     if(lock[i])continue;
     if(cur.alive[i]){
       al++;
-      if(Math.abs(cur.r[i]-oR[i])>2||Math.abs(cur.g[i]-oG[i])>2||Math.abs(cur.b[i]-oB[i])>2)mut++;
+      const reg=cur.region[i];
+      if(Math.abs(regR[reg]-oR[i])>2||Math.abs(regG[reg]-oG[i])>2||Math.abs(regB[reg]-oB[i])>2)mut++;
     }else if(cur.fade[i]>0)fd++;
   }
   $('#stGen').textContent=gen;
@@ -1264,6 +1350,8 @@ function fitView(){
   view.x=(W-S.cols*view.scale)/2;view.y=(H-S.rows*view.scale)/2;
   needRender=true;
 }
+
+
 function zoomAt(mx,my,f){
   const ns=clamp(view.scale*f,1,80),k=ns/view.scale;
   view.x=mx-(mx-view.x)*k;view.y=my-(my-view.y)*k;
@@ -1272,60 +1360,88 @@ function zoomAt(mx,my,f){
 const BGS={dark:[16,20,29],black:[0,0,0],white:[255,255,255]};
 const bgColor=()=>`rgb(${BGS[S.bg][0]},${BGS[S.bg][1]},${BGS[S.bg][2]})`;
 let _ageTint=true;
-function agedRGB(r,g,b,age){
-  if(!_ageTint||age===0)return[r,g,b];
-  const f=Math.min(age,120)/120,lum=0.2126*r+0.7152*g+0.0722*b;
-  const sm=1+0.08*f,br=1+0.04*f;
-  const adj=v=>clamp(Math.round((v*sm+lum*(1-sm))*br),0,255);
-  return[adj(r),adj(g),adj(b)];
+
+/* draw the REAL source patch of a region into a destination rect.
+   `work` is the single offscreen canvas holding the source image. */
+function drawPatch(g,reg,dx,dy,dw,dh){
+  g.drawImage(work,RX0[reg],RY0[reg],RW[reg],RH[reg],dx,dy,dw,dh);
 }
-const heatColor=v=>`hsl(${(240*(1-v)).toFixed(0)},85%,${(50+10*v).toFixed(0)}%)`;
 
 function paintCells(g,cs,ox,oy,W,H,buf,ghosts){
   const R=S.rows,C=S.cols,gapPx=Math.min(S.gap,cs*0.4);
   g.fillStyle=bgColor();g.fillRect(ox,oy,C*cs,R*cs);
   const c0=clamp(Math.floor(-ox/cs),0,C),c1=clamp(Math.ceil((W-ox)/cs),0,C);
   const r0=clamp(Math.floor(-oy/cs),0,R),r1=clamp(Math.ceil((H-oy)/cs),0,R);
+  const recOn=(phase==='reconstructing'&&recon&&buf===cur);
   for(let r=r0;r<r1;r++){
     const y=oy+r*cs;
     for(let c=c0;c<c1;c++){
       const i=r*C+c;
-      let ar,ag_,ab,alpha=1;
+      const x=ox+c*cs,cw=Math.max(0.5,cs-gapPx),ch=Math.max(0.5,cs-gapPx);
       if(buf.alive[i]){
-        [ar,ag_,ab]=agedRGB(buf.r[i],buf.g[i],buf.b[i],buf.age[i]);
+        const reg=buf.region[i];
+        if(recOn&&recon.over[i]>0.001&&recon.over[i]<0.999){
+          const t=recon.tRegion[i],e=recon.over[i];
+          if(t===reg){g.globalAlpha=1;drawPatch(g,reg,x,y,cw,ch);}
+          else{
+            g.globalAlpha=1-e;drawPatch(g,reg,x,y,cw,ch);
+            g.globalAlpha=e;drawPatch(g,t,x,y,cw,ch);
+          }
+          g.globalAlpha=1;
+        }else{
+          g.globalAlpha=1;drawPatch(g,reg,x,y,cw,ch);
+        }
+        if(_ageTint&&buf.age[i]>0){
+          const f=Math.min(buf.age[i],120)/120;
+          g.globalAlpha=0.06*f;g.fillStyle='#ffffff';g.fillRect(x,y,cw,ch);
+          g.globalAlpha=1;
+        }
       }else if(ghosts&&buf.fade[i]>0){
-        ar=buf.r[i];ag_=buf.g[i];ab=buf.b[i];alpha=buf.fade[i];
-      }else continue;
-      g.globalAlpha=alpha;
-      g.fillStyle=`rgb(${ar},${ag_},${ab})`;
-      g.fillRect(ox+c*cs,y,Math.max(0.5,cs-gapPx),Math.max(0.5,cs-gapPx));
+        g.globalAlpha=buf.fade[i];drawPatch(g,buf.region[i],x,y,cw,ch);
+        g.globalAlpha=1;
+      }
     }
   }
   g.globalAlpha=1;
 }
 
-/* ── smooth path: 1 px/cell offscreen buffer, blitted with interpolation ── */
+/* ── smooth path: 1 px/cell offscreen buffer, blitted with interpolation.
+   Each region is drawn into its 1×1 cell with drawImage (true patch data),
+   then the buffer is upscaled to the board. ── */
 const pix=document.createElement('canvas');
 const pctx=pix.getContext('2d');
-let pixData=null;
 function paintCellsSmooth(g,cs,ox,oy,W,H,buf,ghosts){
   const R=S.rows,C=S.cols;
-  if(pix.width!==C||pix.height!==R){pix.width=C;pix.height=R;pixData=null;}
-  if(!pixData)pixData=pctx.createImageData(C,R);
-  const d=pixData.data,bg=BGS[S.bg];
+  if(pix.width!==C||pix.height!==R){pix.width=C;pix.height=R;}
+  pctx.clearRect(0,0,C,R);
+  pctx.fillStyle=bgColor();pctx.fillRect(0,0,C,R);
+  pctx.imageSmoothingEnabled=true;pctx.imageSmoothingQuality='high';
+  const recOn=(phase==='reconstructing'&&recon&&buf===cur);
   for(let i=0;i<N;i++){
-    const o=i*4;
+    const r=(i/C)|0,c=i%C;
     if(buf.alive[i]){
-      const ac=agedRGB(buf.r[i],buf.g[i],buf.b[i],buf.age[i]);
-      d[o]=ac[0];d[o+1]=ac[1];d[o+2]=ac[2];d[o+3]=255;
+      const reg=buf.region[i];
+      if(recOn&&recon.over[i]>0.001&&recon.over[i]<0.999){
+        const t=recon.tRegion[i],e=recon.over[i];
+        if(t===reg){pctx.globalAlpha=1;drawPatch(pctx,reg,c,r,1,1);}
+        else{
+          pctx.globalAlpha=1-e;drawPatch(pctx,reg,c,r,1,1);
+          pctx.globalAlpha=e;drawPatch(pctx,t,c,r,1,1);
+        }
+        pctx.globalAlpha=1;
+      }else{
+        pctx.globalAlpha=1;drawPatch(pctx,reg,c,r,1,1);
+      }
+      if(_ageTint&&buf.age[i]>0){
+        const f=Math.min(buf.age[i],120)/120;
+        pctx.globalAlpha=0.06*f;pctx.fillStyle='#ffffff';pctx.fillRect(c,r,1,1);
+        pctx.globalAlpha=1;
+      }
     }else if(ghosts&&buf.fade[i]>0){
-      d[o]=buf.r[i];d[o+1]=buf.g[i];d[o+2]=buf.b[i];
-      d[o+3]=(buf.fade[i]*255)|0;
-    }else{
-      d[o]=bg[0];d[o+1]=bg[1];d[o+2]=bg[2];d[o+3]=255;
+      pctx.globalAlpha=buf.fade[i];drawPatch(pctx,buf.region[i],c,r,1,1);
+      pctx.globalAlpha=1;
     }
   }
-  pctx.putImageData(pixData,0,0);
   g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
   g.drawImage(pix,ox,oy,C*cs,R*cs);
   g.imageSmoothingEnabled=false;
@@ -1425,7 +1541,7 @@ function render(){
     ctx.strokeRect(bx+hl.c*cs+1,by+hl.r*cs+1,cs-2,cs-2);
   }
   $('#hud').textContent=
-    `Gen ${gen} · ${phase.toUpperCase()}${stopReason&&phase!=='idle'?` (${stopReason}${loopPeriod?' ·p'+loopPeriod:''})`:''} · ${view.scale.toFixed(1)}px`;
+    `Gen ${gen} · ${phase.toUpperCase()}${stopReason&&phase!=='idle'?` (${stopReason}${loopPeriod?` ·p${loopPeriod}`:''})`:''} · ${view.scale.toFixed(1)}px`;
 }
 S.debug=()=>$('#dbgOn').checked;
 
@@ -1439,6 +1555,20 @@ function nbCount(r,c){
   }
   return n;
 }
+
+/* render a cell's ACTUAL image patch into a swatch div (one shared tiny canvas) */
+const swCv=document.createElement('canvas');swCv.width=128;swCv.height=128;
+const swCtx=swCv.getContext('2d');
+function fillPatch(div,reg,alpha){
+  swCtx.clearRect(0,0,128,128);
+  swCtx.globalAlpha=alpha;
+  if(reg>=0)drawPatch(swCtx,reg,0,0,128,128);
+  swCtx.globalAlpha=1;
+  div.style.backgroundImage='url('+swCv.toDataURL()+')';
+  div.style.backgroundSize='cover';
+  div.style.backgroundPosition='center';
+}
+
 function inspectorUpdate(){
   const cell=pinned??(S.debug()?hover:null);
   const empty=$('#insEmpty'),body=$('#insBody');
@@ -1455,16 +1585,17 @@ function inspectorUpdate(){
   $('#insLock').textContent=L?'YES — SKELETON':(mutantMask&&mutantMask[i]?'NO — MUTANT':'NO — EVOLVING');
   $('#insLock').className='val '+(L?'st-lock':'st-alive');
   $('#insNb').textContent=nbCount(cell.r,cell.c)+' / 8';
+  const rg=cur.region[i];
   if(L||al){
-    $('#insSwatch').style.background=rgbHex(cur.r[i],cur.g[i],cur.b[i]);
-    $('#insCurHex').textContent=rgbHex(cur.r[i],cur.g[i],cur.b[i])+(al&&!L&&cur.age[i]>0?` · age ${cur.age[i]}`:'');
-    $('#insCur').textContent=`${cur.r[i]}, ${cur.g[i]}, ${cur.b[i]}`;
+    fillPatch($('#insSwatch'),rg,1);
+    $('#insCurHex').textContent=rgbHex(regR[rg],regG[rg],regB[rg])+(al&&!L&&cur.age[i]>0?` · age ${cur.age[i]}`:'');
+    $('#insCur').textContent=`${regR[rg]}, ${regG[rg]}, ${regB[rg]}`;
   }else{
-    $('#insSwatch').style.background=`rgba(${cur.r[i]},${cur.g[i]},${cur.b[i]},${fd})`;
+    fillPatch($('#insSwatch'),rg,fd);
     $('#insCurHex').textContent=fd>0?`ghost @ ${(fd*100)|0}%`:'—';
-    $('#insCur').textContent=fd>0?`${cur.r[i]}, ${cur.g[i]}, ${cur.b[i]} @ ${(fd*100)|0}%`:'—';
+    $('#insCur').textContent=fd>0?`${regR[rg]}, ${regG[rg]}, ${regB[rg]} @ ${(fd*100)|0}%`:'—';
   }
-  $('#insOSwatch').style.background=rgbHex(oR[i],oG[i],oB[i]);
+  fillPatch($('#insOSwatch'),i,1);
   $('#insOHex').textContent=rgbHex(oR[i],oG[i],oB[i]);
   $('#insOrig').textContent=`${oR[i]}, ${oG[i]}, ${oB[i]}`;
   $('#mImp i').style.width=(importance[i]*100)+'%';
@@ -1530,9 +1661,9 @@ bindSeg($('#viewSeg'),v=>{S.view=v;needRender=true;
 bindSeg($('#fillSeg'),v=>{
   S.recFill=v;
   $('#recHint').innerHTML=v==='memory'
-    ?'<b>MEMORY</b> (default): empty cells are recolonized by the <b>evolved colors of their restored neighbors</b> — the image reforms as a memory of its journey. Surviving mutants keep their colors and flare as the wave passes. ORIGINAL = classic Gen-0 restore.'
-    :'<b>ORIGINAL</b> (classic): every cell eases back to its originalColor — the exact Generation 0 image returns.';
-  toast(v==='memory'?'Reconstruction will rebuild from evolved colors (MEMORY)'
+    ?'<b>MEMORY</b> (default): empty cells are recolonized by the <b>evolved image patches of their restored neighbors</b> — the image reforms as a memory of its journey. Surviving mutants keep their patches and flare as the wave passes. ORIGINAL = classic Gen-0 restore.'
+    :'<b>ORIGINAL</b> (classic): every cell eases back to its original image patch — the exact Generation 0 image returns.';
+  toast(v==='memory'?'Reconstruction will rebuild from evolved patches (MEMORY)'
                     :'Reconstruction will restore the exact Gen-0 image (ORIGINAL)');
 });
 bindSeg($('#recSeg'),v=>{
@@ -1657,6 +1788,232 @@ function makeSampleImage(){
   return c;
 }
 
+/* ═════════════════ VIDEO RECORDER ═════════════════
+   Records ONLY the actual image/simulation via a DEDICATED offscreen
+   canvas (recordCanvas) — NOT the visible #board. This guarantees the
+   exported video contains just the simulation at its native aspect ratio:
+   no sidebars, toolbar, HUD, page background or margins.
+
+   - recordCanvas dimensions derive from the SOURCE image aspect ratio
+     (grid aspect), capped at 1920 on the longest side, so the video is
+     never letterboxed, pillarboxed or stretched.
+   - Every animation frame while recording, renderRecordingFrame() paints
+     the REAL current state (patches, mutations, ghosts, reconstruction
+     cross-fades, bloom, shimmer, grid, locked-cell outlines — plus GEN 0
+     and ORIGINAL views) full-frame into recordCanvas.
+   - Capture: recordCanvas.captureStream(fps) + MediaRecorder (browser
+     codec detection: vp9 → vp8 → webm → mp4). No screen capture ever.
+   - Audio: optionally taps AudioFX's master via MediaStreamDestination
+     (only when the sound engine is running); speaker output stays intact.
+   - The visible #board and the simulation keep running normally — the
+     recorder simply observes the shared simulation state every frame. */
+const VideoRecorder=(()=>{
+  const BITS={standard:3000000,high:6000000,max:12000000};
+  const CAP=1920; /* longest recorded side (memory-sane upper bound) */
+  const wrapped=(()=>{
+    if(typeof MediaRecorder==='undefined')return null;
+    for(const m of ['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm','video/mp4;codecs=avc1','video/mp4']){
+      try{if(MediaRecorder.isTypeSupported(m))return m;}catch(e){}
+    }
+    return '';
+  })();
+  let fps=30,quality='standard';
+  let rec=null,stream=null,chunks=[],url=null,recordedMime='';
+  let startAt=0,timerId=null,lastDuration=0;
+  let recCv=null,recCtx=null;   /* dedicated offscreen recording canvas */
+
+  const fmt=s=>{const m=(s/60)|0,ss=(s%60)|0;return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');};
+  const stamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return ''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'-'+p(d.getHours())+p(d.getMinutes())+p(d.getSeconds());};
+
+  /* recording frame size = grid aspect ratio (== source aspect ratio in
+     default mode), scaled from the source image, capped at CAP. Even dims
+     for codec safety. Never based on wrap.clientWidth/clientHeight, so
+     browser/window resizes cannot introduce borders into the video. */
+  function computeRecDims(){
+    const srcW=Math.max(1,work.width),srcH=Math.max(1,work.height);
+    const sc=Math.min(1,CAP/Math.max(srcW,srcH));
+    let bw=Math.round(srcW*sc),bh=Math.round(srcH*sc);
+    const ga=S.cols/S.rows;                 /* grid aspect ratio */
+    if(bw/bh>ga+1e-6)bh=Math.max(2,Math.round(bw/ga));
+    else if(bw/bh<ga-1e-6)bw=Math.max(2,Math.round(bh*ga));
+    if(bw&1)bw++;if(bh&1)bh++;
+    return{w:Math.max(2,bw),h:Math.max(2,bh)};
+  }
+
+  /* paints the CURRENT simulation state into the offscreen recording
+     canvas, full-frame, at the image's own aspect ratio — no HUD, no
+     labels, no hover/pinned highlight, no page background, no padding. */
+  function renderRecordingFrame(){
+    if(!recCv||!recCtx)return;
+    const g=recCtx,R=S.rows,C=S.cols,W=recCv.width,H=recCv.height;
+    g.setTransform(1,0,0,1,0,0);
+    g.imageSmoothingEnabled=false;
+    if(S.view==='original'){
+      if(srcImg){g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(srcImg,0,0,W,H);}
+      else{g.fillStyle=bgColor();g.fillRect(0,0,W,H);}
+      return;
+    }
+    const cs=Math.min(W/C,H/R),ox=(W-C*cs)/2,oy=(H-R*cs)/2;
+    const painter=S.smooth?paintCellsSmooth:paintCells;
+    if(S.view==='gen0')painter(g,cs,ox,oy,W,H,gen0Snap,false);
+    else painter(g,cs,ox,oy,W,H,cur,true);
+    if($('#dbgGrid').checked&&cs>=4){
+      g.strokeStyle=S.bg==='white'?`rgba(10,14,22,${S.gridAlpha})`:`rgba(190,205,235,${S.gridAlpha})`;
+      g.lineWidth=1;g.beginPath();
+      for(let c=0;c<=C;c++){const x=Math.round(ox+c*cs)+.5;g.moveTo(x,oy);g.lineTo(x,oy+R*cs);}
+      for(let r=0;r<=R;r++){const y=Math.round(oy+r*cs)+.5;g.moveTo(ox,y);g.lineTo(ox+C*cs,y);}
+      g.stroke();
+    }
+    if($('#dbgOutline').checked&&S.view==='sim'&&cs>=6){
+      g.strokeStyle='rgba(255,180,84,.55)';g.lineWidth=Math.max(1,cs*0.08);
+      const inset=Math.max(.6,cs*.09);
+      for(let r=0;r<R;r++)for(let c=0;c<C;c++)
+        if(lock[r*C+c])g.strokeRect(ox+c*cs+inset,oy+r*cs+inset,cs-inset*2,cs-inset*2);
+    }
+    if(bloomCount>0&&S.view==='sim'){
+      for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+        const i=r*C+c,b=bloomFx[i];
+        if(b<=0.02)continue;
+        const s=cs*(1+0.25*Math.min(1,b));
+        g.globalAlpha=Math.min(0.65,b*0.5);
+        g.fillStyle=mutantMask[i]?'#fff1c9':'#d9f1ff';
+        g.fillRect(ox+c*cs+cs/2-s/2,oy+r*cs+cs/2-s/2,s,s);
+      }
+      g.globalAlpha=1;
+    }
+    if(phase==='restored'&&lastRecMode==='memory'&&S.shimmer&&mutantCount>0&&S.view==='sim'){
+      const t=performance.now();
+      for(let r=0;r<R;r++)for(let c=0;c<C;c++){
+        const i=r*C+c;
+        if(!mutantMask[i])continue;
+        const a=0.04+0.055*(0.5+0.5*Math.sin(t*0.0028+r*0.9+c*0.45));
+        g.globalAlpha=a;g.fillStyle='#ffedc2';
+        g.fillRect(ox+c*cs,oy+r*cs,Math.max(0.5,cs-Math.min(S.gap,cs*0.4)),Math.max(0.5,cs-Math.min(S.gap,cs*0.4)));
+      }
+      g.globalAlpha=1;
+    }
+  }
+
+  function supported(){return !!(window.MediaRecorder&&HTMLCanvasElement.prototype.captureStream);}
+  function format(){return wrapped===''?'(browser default)':(wrapped||'unavailable');}
+  function isActive(){return rec!==null;}
+  function setFps(v){if(!rec)fps=v;}
+  function setQuality(v){if(!rec)quality=v;}
+
+  function stopTracks(){
+    if(stream){try{stream.getTracks().forEach(t=>t.stop());}catch(e){}stream=null;}
+    if(AudioFX.releaseRecordStream)AudioFX.releaseRecordStream();
+  }
+  function resetUI(){
+    $('#btnRecStart').classList.remove('rec');$('#btnRecStart').disabled=false;
+    $('#btnRecStop').disabled=true;
+    $('#recStatus').classList.remove('live');
+  }
+
+  function start(){
+    if(rec)return false;
+    if(typeof MediaRecorder==='undefined'||!HTMLCanvasElement.prototype.captureStream){
+      toast('Video recording is not supported in this browser');return false;
+    }
+    if(!work.width||!S.rows||!S.cols||!cur){toast('Load an image first');return false;}
+    /* dedicated offscreen canvas at the IMAGE's aspect ratio (no viewport) */
+    const dims=computeRecDims();
+    recCv=document.createElement('canvas');
+    recCv.width=dims.w;recCv.height=dims.h;
+    recCtx=recCv.getContext('2d',{alpha:false});
+    renderRecordingFrame();   /* seed a frame BEFORE MediaRecorder starts */
+    let st=null;
+    try{st=recCv.captureStream(fps);}catch(e){}
+    if(!st||!st.getVideoTracks().length){
+      recCv=null;recCtx=null;
+      toast('canvas.captureStream() failed in this browser');return false;
+    }
+    stream=st;
+    let hasAudio=false;
+    try{
+      const as=AudioFX.getRecordStream&&AudioFX.getRecordStream();
+      if(as&&as.getAudioTracks().length){as.getAudioTracks().forEach(t=>stream.addTrack(t));hasAudio=true;}
+    }catch(e){}
+    chunks=[];
+    try{
+      const opts={videoBitsPerSecond:BITS[quality]||6000000};
+      if(wrapped)opts.mimeType=wrapped;
+      rec=new MediaRecorder(stream,opts);
+    }catch(e){
+      try{rec=new MediaRecorder(stream);}catch(e2){
+        stopTracks();recordedMime='';recCv=null;recCtx=null;
+        toast('MediaRecorder could not start — '+(e2.message||'unsupported codec'));return false;
+      }
+    }
+    recordedMime=rec.mimeType||wrapped||'video/webm';
+    rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data);};
+    rec.onerror=()=>{toast('Recording error — stopped');stop();};
+    rec.onstop=()=>finalize();
+    try{rec.start(250);}catch(e){
+      stopTracks();recordedMime='';recCv=null;recCtx=null;rec=null;resetUI();
+      toast('MediaRecorder failed to start');return false;
+    }
+    startAt=Date.now();lastDuration=0;
+    timerId=setInterval(()=>{
+      const s=(Date.now()-startAt)/1000;
+      $('#recStatus').textContent=`● RECORDING ${fmt(s)} · ${fps} FPS · GEN ${gen}`;
+    },250);
+    $('#btnRecStart').classList.add('rec');$('#btnRecStart').disabled=true;
+    $('#btnRecStop').disabled=false;$('#btnRecDownload').disabled=true;
+    $('#recStatus').textContent=`● RECORDING 00:00 · ${fps} FPS`;
+    $('#recStatus').classList.add('live');
+    $('#recFormat').textContent=recordedMime+' · '+quality.toUpperCase()+(hasAudio?' · with audio':' · no audio')+' · '+fps+' FPS · '+dims.w+'×'+dims.h;
+    toast('Recording started — '+recordedMime+' ('+dims.w+'×'+dims.h+')');
+    return true;
+  }
+
+  function stop(){
+    if(!rec)return;
+    clearInterval(timerId);timerId=null;
+    if(rec.state==='inactive')finalize();
+    else{try{rec.stop();}catch(e){finalize();}}
+  }
+
+  function finalize(){
+    if(!rec)return;
+    clearInterval(timerId);timerId=null;
+    const mimeType=recordedMime||'video/webm';
+    const blob=new Blob(chunks,{type:mimeType});
+    lastDuration=(Date.now()-startAt)/1000;
+    const dimsTxt=recCv?(recCv.width+'×'+recCv.height):'';
+    stopTracks();
+    recCv=null;recCtx=null;
+    rec=null;chunks=[];
+    resetUI();
+    if(blob.size===0){
+      $('#recStatus').textContent='Recording failed — no data captured';
+      $('#recFormat').textContent=mimeType+' · try a longer recording';
+      toast('Recording captured no data');
+      return;
+    }
+    if(url)URL.revokeObjectURL(url);
+    url=URL.createObjectURL(blob);
+    $('#btnRecDownload').disabled=false;
+    $('#recStatus').textContent=`Recording complete · ${fmt(lastDuration)} · ${fps} FPS · ${(blob.size/1048576).toFixed(1)} MB`;
+    $('#recFormat').textContent=mimeType+' · '+quality.toUpperCase()+' · '+dimsTxt+' · ready to download';
+    toast('Recording finished — '+fmt(lastDuration));
+  }
+
+  function download(){
+    if(!url)return;
+    const ext=(recordedMime||'').indexOf('mp4')>=0?'mp4':'webm';
+    const a=document.createElement('a');
+    a.href=url;a.download=`image-evolution-gen-${gen}-${stamp()}.${ext}`;
+    document.body.appendChild(a);a.click();a.remove();
+    toast('Video download started');
+  }
+
+  /* called from the main animation loop while recording */
+  function renderFrame(){renderRecordingFrame();}
+
+  return {start,stop,download,supported,format,isActive,setFps,setQuality,renderFrame};
+})();
+
 /* ═════════════════ EXPORT ═════════════════ */
 $('#expPng').addEventListener('click',()=>{
   const cell=clamp(Math.floor(4096/Math.max(S.rows,S.cols)),2,80);
@@ -1674,6 +2031,19 @@ $('#expPng').addEventListener('click',()=>{
   },'image/png');
 });
 
+/* ═════════════════ RECORDER UI ═════════════════ */
+bindSeg($('#recFpsSeg'),v=>{VideoRecorder.setFps(+v);toast('Recording frame rate: '+v+' FPS');});
+bindSeg($('#recQualSeg'),v=>{VideoRecorder.setQuality(v);toast('Recording quality: '+v.toUpperCase());});
+$('#btnRecStart').addEventListener('click',()=>VideoRecorder.start());
+$('#btnRecStop').addEventListener('click',()=>VideoRecorder.stop());
+$('#btnRecDownload').addEventListener('click',()=>VideoRecorder.download());
+(function initRecInfo(){
+  const ok=VideoRecorder.supported();
+  $('#recFormat').textContent=ok
+    ?'Format: '+VideoRecorder.format()+' · records the image at its own aspect ratio'
+    :'Video recording not supported in this browser';
+})();
+
 /* ═════════════════ MAIN LOOP ═════════════════ */
 let lastT=performance.now(),acc=0;
 function frame(t){
@@ -1686,7 +2056,11 @@ function frame(t){
   }else acc=0;
   if(phase==='reconstructing')advanceRecon(dt);
   bloomDecay(dt);
-  if(needRender||S.playing||phase==='reconstructing'||bloomCount>0){render();needRender=false;}
+  const shouldRender=needRender||S.playing||phase==='reconstructing'||bloomCount>0;
+  if(shouldRender){render();needRender=false;}
+  /* keep the offscreen recording canvas in sync with the current state,
+     frame by frame (reconstruction animation included) */
+  if(VideoRecorder.isActive()&&shouldRender)VideoRecorder.renderFrame();
   requestAnimationFrame(frame);
 }
 
