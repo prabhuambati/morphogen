@@ -207,6 +207,16 @@
       </div>
     </section>
 
+    <!-- ══════════ GRID SIZE (rows; columns follow image aspect, max 128) ══════════ -->
+    <section class="card">
+      <h2>Grid Size <small id="gridStat">128×128</small></h2>
+      <div class="slider-row">
+        <input type="range" id="inGrid" min="10" max="128" step="1" value="128">
+        <output id="gridOut">128</output>
+      </div>
+      <p class="hint">Rows snap to <b>10 · 12 · 20 · 25 · 32 · 64 · 128</b> (128 is the maximum). Columns follow the image aspect ratio automatically.</p>
+    </section>
+
     <section class="card">
       <h2>Structure Preservation <small id="lockStat">–</small></h2>
       <div class="slider-row">
@@ -817,7 +827,8 @@ function setSource(img,name){
 
 function aspectCols(rows){
   if(!S.aspect||!srcImg||!work.width||!work.height)return rows;
-  return clamp(Math.round(rows*work.width/work.height),8,192);
+  /* columns follow the image aspect ratio, but 128 is the absolute grid maximum */
+  return clamp(Math.round(rows*work.width/work.height),8,128);
 }
 
 /* ═════════════════ ANALYSIS SAMPLING ═════════════════
@@ -950,6 +961,10 @@ function rebuildAll(fit){
   for(let i=0;i<N;i++){oR[i]=avg[i*3];oG[i]=avg[i*3+1];oB[i]=avg[i*3+2];}
   applyLockMask(edge,S.rows,S.cols);
   $('#lockStat').textContent=`${lockCount} cells · ${((lockCount/N)*100).toFixed(1)}%`;
+  /* keep the grid slider/labels in sync with the actual grid */
+  $('#gridStat').textContent=S.rows+'×'+S.cols;
+  $('#gridOut').textContent=S.rows;
+  const gs=$('#inGrid');if(gs)gs.value=S.rows;
   bloomFx=new Float32Array(N); mutantMask=new Uint8Array(N);
   bloomCount=0; mutantCount=0;
   cur=makeBuf();nxt=makeBuf();
@@ -1674,6 +1689,26 @@ bindSeg($('#recSeg'),v=>{
      :'Cells restore row by row');
 });
 
+/* ── grid size slider: discrete presets, maximum 128 rows ── */
+const GRID_PRESETS=[10,12,20,25,32,64,128];
+function nearestPreset(v){
+  let best=GRID_PRESETS[0];
+  for(const p of GRID_PRESETS)if(Math.abs(p-v)<Math.abs(best-v))best=p;
+  return best;
+}
+$('#inGrid').addEventListener('input',e=>{
+  /* live preview of the preset the slider will snap to */
+  $('#gridOut').textContent=nearestPreset(+e.target.value);
+});
+$('#inGrid').addEventListener('change',e=>{
+  const v=nearestPreset(+e.target.value);
+  e.target.value=v;
+  /* rows change → columns follow the image aspect ratio, both via the
+     existing setDims() → rebuildAll() pipeline */
+  setDims(v,aspectCols(v));
+  toast(`Grid set to ${S.rows}×${S.cols} (${S.rows} rows)`);
+});
+
 function setDims(r,c){
   r=clamp(Math.round(r)||16,8,192);c=clamp(Math.round(c)||16,8,192);
   S.rows=r;S.cols=c;
@@ -2066,6 +2101,7 @@ function frame(t){
 
 /* ═════════════════ INIT ═════════════════ */
 sizeCanvas();
+$('#gridOut').textContent=S.rows;
 setSource(makeSampleImage(),'sample-sunset.png');
 requestAnimationFrame(t=>{lastT=t;requestAnimationFrame(frame);});
 </script>
