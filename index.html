@@ -134,6 +134,17 @@
     border:1px solid var(--line);overflow:hidden;background:var(--bg)}
   #board{position:absolute;inset:0;display:block;touch-action:none}
   #board.grab{cursor:grab}#board.grabbing{cursor:grabbing}
+  .nav{display:flex;align-items:center;gap:8px;margin-left:18px}
+  .nav-btn{padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:#fff8ee;color:var(--muted);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;transition:border-color .15s,background .15s,color .15s}
+  .nav-btn.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
+  .nav-btn:hover:not(.active){border-color:#5a4d39;color:var(--text)}
+  .art-panel{display:none;flex-direction:column;min-height:0;gap:10px}
+  .art-panel .art-header{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .art-panel h2{margin:0;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#a9793a}
+  .art-panel .art-sub{margin:0;color:var(--muted);font-size:11.5px;line-height:1.5}
+  .art-wrap{position:relative;height:100%;min-height:360px;flex:1;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:#0d1016}
+  #artCanvas{display:block;width:100%;height:100%;background:#0d1016;image-rendering:auto}
+  .art-stat{margin-top:2px;font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;letter-spacing:.04em}
   .hud{position:absolute;left:12px;bottom:10px;pointer-events:none;font-family:ui-monospace,Menlo,monospace;
     font-size:11px;color:#4a3a22;background:rgba(255,250,240,.85);border:1px solid rgba(180,140,60,.15);
     padding:4px 9px;border-radius:8px;backdrop-filter:blur(6px)}
@@ -171,9 +182,14 @@
     opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;max-width:80vw}
   .toast.show{opacity:1;transform:translateY(0)}
 
+  body.art-mode main.layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+  body.art-mode .side.left,body.art-mode .side.right{display:none}
+  body.art-mode .stage{display:flex;flex-direction:column;min-height:0}
+  body.art-mode .art-panel{display:flex}
   @media (max-width:1140px){
     body{overflow:auto}
     main.layout{grid-template-columns:1fr;overflow:visible}
+    body.art-mode main.layout{grid-template-columns:1fr}
     .stage{order:-1}
     .canvas-wrap{min-height:56vh}
     .side{overflow:visible}
@@ -185,6 +201,10 @@
 <header>
   <img id="siteLogo" src="logo.png" alt="Image Evolution" style="height:26px;width:auto;display:none;border-radius:6px">
   <div class="logo"><span class="mark" id="logoMark"></span> </div>
+  <div class="nav" aria-label="Primary navigation">
+    <button class="nav-btn active" data-mode="simulate" type="button">Simulate</button>
+    <button class="nav-btn" data-mode="art" type="button">Art</button>
+  </div>
   <div class="tagline"></div>
 </header>
 
@@ -336,6 +356,18 @@
     </div>
   </section>
 
+  <section class="card art-panel" id="artWorkspace">
+    <div class="art-header">
+      <h2>Art Canvas</h2>
+      <span class="mono art-stat" id="artModeStat">Locked Cells · 0 (0.0%)</span>
+    </div>
+    <p class="art-sub">Structural skeleton · locked cells from input</p>
+    <div class="art-wrap" id="artWorkWrap">
+      <canvas id="artCanvas"></canvas>
+    </div>
+    <div class="art-stat mono" id="artLockStat">Locked Cells · 0 (0.0%)</div>
+  </section>
+
   <!-- ══════════ RIGHT ══════════ -->
   <aside class="side right">
     <section class="card">
@@ -469,7 +501,7 @@ const S={
   structPct:0.35, sens:1.0, survival:0.60,
   fadeStep:0.25, gap:0, gridAlpha:0.14, bg:'dark', smooth:false,
   speed:12, recMode:'outside', recFill:'memory', recMult:1.0, shimmer:true,
-  playing:false, view:'sim',
+  playing:false, view:'sim', appMode:'simulate',
 };
 let srcImg=null;
 
@@ -961,6 +993,8 @@ function rebuildAll(fit){
   for(let i=0;i<N;i++){oR[i]=avg[i*3];oG[i]=avg[i*3+1];oB[i]=avg[i*3+2];}
   applyLockMask(edge,S.rows,S.cols);
   $('#lockStat').textContent=`${lockCount} cells · ${((lockCount/N)*100).toFixed(1)}%`;
+  if($('#artLockStat'))$('#artLockStat').textContent=`Locked Cells · ${lockCount} (${((lockCount/N)*100).toFixed(1)}%)`;
+  renderArtCanvas();
   /* keep the grid slider/labels in sync with the actual grid */
   $('#gridStat').textContent=S.rows+'×'+S.cols;
   $('#gridOut').textContent=S.rows;
@@ -1350,7 +1384,60 @@ function updateStats(){
 
 /* ═════════════════ RENDERING ═════════════════ */
 const canvas=$('#board'),ctx=canvas.getContext('2d'),wrap=$('#canvasWrap');
+const artCanvas=$('#artCanvas'), artCtx=artCanvas&&artCanvas.getContext('2d'), artWrap=$('#artWorkWrap');
 const view={x:0,y:0,scale:14};
+
+function sizeArtCanvas(){
+  if(!artCanvas||!artWrap)return;
+  const dpr=window.devicePixelRatio||1;
+  const w=artWrap.clientWidth||artCanvas.clientWidth||320;
+  const h=artWrap.clientHeight||artCanvas.clientHeight||320;
+  artCanvas.width=Math.max(1,Math.round(w*dpr));
+  artCanvas.height=Math.max(1,Math.round(h*dpr));
+}
+
+function renderArtCanvas(){
+  if(!artCtx||!artCanvas||!work||!lock||!RX0||!RY0||!RW||!RH)return;
+  const w=artWrap?artWrap.clientWidth:artCanvas.clientWidth||320;
+  const h=artWrap?artWrap.clientHeight:artCanvas.clientHeight||320;
+  const dpr=window.devicePixelRatio||1;
+  artCanvas.width=Math.max(1,Math.round(w*dpr));
+  artCanvas.height=Math.max(1,Math.round(h*dpr));
+  artCtx.setTransform(dpr,0,0,dpr,0,0);
+  artCtx.clearRect(0,0,w,h);
+  artCtx.fillStyle='#0d1016';
+  artCtx.fillRect(0,0,w,h);
+  const labelText=`Locked Cells · ${lockCount} (${((lockCount && N)?((lockCount/N)*100):0).toFixed(1)}%)`;
+  $('#artLockStat').textContent=labelText;
+  $('#artModeStat').textContent=labelText;
+  if(!N||!lockCount){return;}
+  const cellSize=Math.min(w/S.cols,h/S.rows);
+  const originX=(w-S.cols*cellSize)/2;
+  const originY=(h-S.rows*cellSize)/2;
+  for(let r=0;r<S.rows;r++){
+    for(let c=0;c<S.cols;c++){
+      const i=r*S.cols+c;
+      if(!lock[i])continue;
+      const x=originX+c*cellSize;
+      const y=originY+r*cellSize;
+      drawPatch(artCtx,i,x,y,cellSize,cellSize);
+    }
+  }
+  artCtx.strokeStyle='rgba(255,255,255,0.14)';
+  artCtx.lineWidth=1;
+  for(let c=0;c<=S.cols;c++){
+    const x=originX+c*cellSize+0.5;
+    artCtx.beginPath();artCtx.moveTo(x,originY);artCtx.lineTo(x,originY+S.rows*cellSize);
+    artCtx.stroke();
+  }
+  for(let r=0;r<=S.rows;r++){
+    const y=originY+r*cellSize+0.5;
+    artCtx.beginPath();artCtx.moveTo(originX,y);artCtx.lineTo(originX+S.cols*cellSize,y);
+    artCtx.stroke();
+  }
+}
+
+if(artWrap) new ResizeObserver(()=>{sizeArtCanvas();renderArtCanvas();}).observe(artWrap);
 
 function sizeCanvas(){
   const dpr=window.devicePixelRatio||1;
@@ -1659,6 +1746,19 @@ canvas.addEventListener('wheel',e=>{
 $('#btnZoomIn').addEventListener('click',()=>zoomAt(wrap.clientWidth/2,wrap.clientHeight/2,1.3));
 $('#btnZoomOut').addEventListener('click',()=>zoomAt(wrap.clientWidth/2,wrap.clientHeight/2,1/1.3));
 $('#btnFit').addEventListener('click',fitView);
+
+function setAppMode(mode){
+  const valid=['simulate','art'];
+  S.appMode = valid.includes(mode) ? mode : 'simulate';
+  document.body.classList.toggle('art-mode', S.appMode === 'art');
+  document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === S.appMode));
+  if(S.appMode === 'art') renderArtCanvas();
+  needRender = true;
+}
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => setAppMode(btn.dataset.mode));
+});
 
 /* ═════════════════ UI BINDINGS ═════════════════ */
 function bindSeg(el,fn){
@@ -2101,6 +2201,8 @@ function frame(t){
 
 /* ═════════════════ INIT ═════════════════ */
 sizeCanvas();
+sizeArtCanvas();
+setAppMode('simulate');
 $('#gridOut').textContent=S.rows;
 setSource(makeSampleImage(),'sample-sunset.png');
 requestAnimationFrame(t=>{lastT=t;requestAnimationFrame(frame);});
