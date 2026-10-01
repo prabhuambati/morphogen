@@ -17,7 +17,9 @@
 <script>
   window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
 </script>
+
 <script defer src="https://cdn.vercel-insights.com/v1/script.js"></script>
+
 <style>
   :root{
     --bg:#fdf6ec; --panel:#ffffff; --panel2:#fef1de; --line:#f0dcb8;
@@ -49,6 +51,10 @@
   .side{display:flex;flex-direction:column;gap:12px;overflow-y:auto;min-height:0;padding-right:2px}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:13px 14px;flex:none;
     box-shadow:0 2px 10px rgba(200,150,60,.07)}
+  details.card>summary{list-style:none;cursor:pointer}
+  details.card>summary::-webkit-details-marker{display:none}
+  details.card>summary h2{margin-bottom:0}
+  details.card[open]>summary h2{margin-bottom:10px}
   .card h2{margin:0 0 10px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
     color:#a9793a;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
   .card h2 small{color:var(--muted);font-weight:500;letter-spacing:.06em;text-transform:none}
@@ -119,7 +125,7 @@
   .tbtn:hover:not(:disabled){border-color:#414c63}
   .tbtn:active:not(:disabled){transform:scale(.93)}
   .tbtn:disabled{opacity:.32;cursor:default}
-  .tbtn.play{width:48px;height:48px;font-size:18px;border:none;color:#fff;
+  .tbtn.play{width:92px;height:42px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.12em;border:none;color:#fff;
     background:linear-gradient(135deg,var(--accent),var(--accent2))}
   .tbtn.play.playing{animation:pulse 1.6s ease-in-out infinite}
   @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,153,51,.4)}50%{box-shadow:0 0 0 9px rgba(255,153,51,0)}}
@@ -132,24 +138,77 @@
 
   .canvas-wrap{position:relative;flex:1;min-height:380px;border-radius:var(--radius);
     border:1px solid var(--line);overflow:hidden;background:var(--bg)}
-  #board{position:absolute;inset:0;display:block;touch-action:none}
+  #board{position:absolute;inset:0;display:block;width:100%;height:100%;touch-action:none}
   #board.grab{cursor:grab}#board.grabbing{cursor:grabbing}
   .nav{display:flex;align-items:center;gap:8px;margin-left:18px}
   .nav-btn{padding:7px 12px;border-radius:999px;border:1px solid var(--line);background:#fff8ee;color:var(--muted);font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;transition:border-color .15s,background .15s,color .15s}
   .nav-btn.active{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border-color:transparent}
   .nav-btn:hover:not(.active){border-color:#5a4d39;color:var(--text)}
-  .art-panel{display:none;flex-direction:column;min-height:0;gap:10px}
-  .art-panel .art-header{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-  .art-panel h2{margin:0;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#a9793a}
-  .art-panel .art-sub{margin:0;color:var(--muted);font-size:11.5px;line-height:1.5}
-  .art-wrap{position:relative;height:100%;min-height:360px;flex:1;overflow:hidden;border-radius:12px;border:1px solid var(--line);background:#0d1016}
-  #artCanvas{display:block;width:100%;height:100%;background:#0d1016;image-rendering:auto}
-  .art-controls{display:grid;gap:12px;padding-top:4px}
-  .art-controls .control-row{display:grid;gap:6px}
-  .art-controls label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
-  .art-controls .control-row input[type=range]{margin-top:2px}
-  .art-controls .btn{margin-top:2px}
-  .art-stat{margin-top:2px;font-size:12px;color:var(--muted);font-family:ui-monospace,Menlo,monospace;letter-spacing:.04em}
+  .art-shell{display:none;flex:1;flex-direction:column;min-height:0;border:1px solid var(--line);border-radius:22px;background:#f7f3ed;overflow:hidden;box-shadow:0 18px 40px rgba(89,53,28,.06)}
+  .art-topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px 12px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.45);backdrop-filter:blur(12px)}
+  .art-brand{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#3a2c1a}
+  .art-brand-mark{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;font-size:12px;box-shadow:0 8px 16px rgba(255,153,51,.28)}
+  .art-mode-switch{display:flex;align-items:center;gap:8px;background:#f2ead7;border:1px solid var(--line);padding:4px;border-radius:999px}
+  .mode-btn{border-radius:999px;padding:8px 16px;font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);transition:all .2s ease}
+  .mode-btn.is-active{background:#fff;color:#2d251f;box-shadow:0 4px 12px rgba(103,74,35,.08)}
+  .art-actions{display:flex;align-items:center;gap:8px}
+  .mini-btn{padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#fffaf3;color:var(--text);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;transition:transform .15s ease,border-color .15s ease}
+  .mini-btn:hover{border-color:rgba(87,65,36,.5);transform:translateY(-1px)}
+  .art-surface{position:relative;display:flex;flex:1;min-height:0;background:#f6f2ea;padding:14px;gap:14px}
+  .art-canvas-panel{position:relative;flex:1;min-height:420px;border:1px solid rgba(120,94,56,.25);border-radius:22px;background:radial-gradient(circle at top,#fffdf9 0%,#f7f2ea 100%);overflow:hidden}
+  #artCanvas{display:block;width:100%;height:100%;background:#fdfaf5;cursor:crosshair;border-radius:22px}
+  .art-empty-state{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .2s ease,visibility .2s ease}
+  .art-empty-state.show{opacity:1;visibility:visible}
+  .art-empty-state-inner{max-width:340px;padding:22px 26px;border:1px solid rgba(121,94,52,.2);border-radius:18px;background:rgba(255,255,255,.75);box-shadow:0 8px 32px rgba(97,64,32,.08);text-align:center}
+  .art-empty-state h3{margin:0 0 8px;font-size:12px;letter-spacing:.22em;font-weight:800;text-transform:uppercase;color:#865b1d}
+  .art-empty-state p{margin:0;color:var(--muted);line-height:1.6;font-size:13px}
+  .art-empty-state .helper-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .art-empty-state button{pointer-events:none}
+  .art-empty-state.show button{pointer-events:auto}
+  .art-asset-drawer{position:absolute;top:18px;right:18px;bottom:18px;width:310px;background:rgba(255,255,255,.92);border:1px solid rgba(158,122,71,.25);backdrop-filter:blur(16px);border-radius:20px;box-shadow:0 18px 36px rgba(60,38,17,.12);transform:translateX(calc(100% + 28px));visibility:hidden;pointer-events:none;transition:transform .25s ease,visibility .25s;z-index:5;display:flex;flex-direction:column;padding:14px 12px 12px;overflow:hidden}
+  .art-asset-drawer.is-open{transform:translateX(0);visibility:visible;pointer-events:auto}
+  .art-drawer-tab{position:absolute;left:16px;top:18px;transform:none;writing-mode:horizontal-tb;letter-spacing:.14em;text-transform:uppercase;border:1px solid rgba(158,122,71,.25);background:#fffaf4;color:#56432c;border-radius:999px;padding:8px 12px;font-size:10px;font-weight:800;cursor:pointer;box-shadow:0 10px 26px rgba(107,71,42,.09);z-index:9}
+  .art-drawer-header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px 10px;border-bottom:1px solid rgba(158,122,71,.18)}
+  .art-drawer-header h3{margin:0;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#8a6428}
+  .art-drawer-close{width:28px;height:28px;border:1px solid var(--line);border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;color:#4a3721;font-weight:700}
+  .art-assets-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:14px 8px 0;overflow:auto}
+  .asset-tile{position:relative;border:1px solid rgba(158,122,71,.2);border-radius:14px;padding:6px;background:#fffaf3;cursor:grab;display:flex;align-items:center;justify-content:center;min-height:118px;overflow:hidden;box-shadow:0 8px 22px rgba(97,64,32,.05)}
+  .asset-tile img{width:100%;height:100%;object-fit:cover;display:block;border-radius:10px;background:repeating-conic-gradient(#f7ebd3 0 25%,#fbf5eb 0 50%) 0 0/12px 12px}
+  .asset-tile .asset-name{position:absolute;left:8px;right:8px;bottom:8px;padding:5px 6px;border-radius:8px;background:rgba(35,24,16,.52);color:#fff;font-size:9px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+  .asset-add-btn{position:absolute;top:8px;right:8px;width:28px;height:28px;border:1px solid rgba(255,255,255,.75);border-radius:50%;background:rgba(35,24,16,.62);color:#fff;font-size:18px;line-height:1;z-index:1}
+  .art-upload-btn{margin-top:16px;border:1px dashed rgba(158,122,71,.45);padding:12px 10px;border-radius:14px;background:rgba(255,255,255,.28);color:#5b441d;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+  .art-panel-stack{width:270px;display:flex;flex-direction:column;gap:10px}
+  .art-panel-section{background:rgba(255,255,255,.58);border:1px solid rgba(158,122,71,.22);border-radius:18px;padding:12px 12px 10px;box-shadow:0 10px 18px rgba(58,39,18,.03)}
+  .art-panel-section h3{margin:0 0 10px;font-size:10px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:#8a6428}
+  .layer-list{display:flex;flex-direction:column;gap:8px;max-height:230px;overflow:auto}
+  .layer-item{display:flex;align-items:center;gap:8px;padding:8px 8px;border:1px solid transparent;border-radius:12px;background:rgba(250,245,238,.7);cursor:pointer;transition:all .2s ease}
+  .layer-item:hover{border-color:rgba(133,100,61,.35)}
+  .layer-item.is-selected{border-color:rgba(255,153,51,.5);background:rgba(255,244,230,.9)}
+  .layer-item .layer-thumb{width:32px;height:32px;border-radius:8px;background:repeating-conic-gradient(#f5e6ca 0 25%,#fbf4ea 0 50%) 0 0/8px 8px;overflow:hidden;border:1px solid rgba(112,84,44,.12)}
+  .layer-item .layer-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .layer-item .layer-meta{flex:1;min-width:0}
+  .layer-item .layer-name{display:block;font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .layer-item .layer-type{display:block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .layer-item .layer-toggle{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;color:#5f4b35}
+  .layer-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .layer-actions button{flex:1 1 auto;padding:6px 8px;border:1px solid var(--line);border-radius:10px;background:#fffaf3;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+  .art-transform-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .art-field{display:flex;flex-direction:column;gap:5px;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .art-field input{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fffaf3;color:var(--text);font:inherit}
+  .art-field select{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fffaf3;color:var(--text);font:inherit}
+  .art-workflow{display:grid;gap:9px}
+  .art-workflow h3{margin-bottom:0}
+  .art-workflow .hint{margin:0}
+  .art-grid-picker{display:grid;gap:8px}
+  #artGridSummary{font-size:11px;color:var(--text)}
+  #artGridPreview{display:block;width:100%;height:auto;aspect-ratio:8/5;border:1px solid var(--line);border-radius:10px;background:#fff;image-rendering:auto}
+  .art-shell[data-stage="fixated"] .art-layer-controls,.art-shell[data-stage="ready"] .art-layer-controls{display:none}
+  .art-slider{display:grid;gap:6px}
+  .art-slider label{display:flex;justify-content:space-between;align-items:center;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .art-slider input[type=range]{width:100%}
+  .art-utility-row{display:flex;flex-wrap:wrap;gap:8px}
+  .art-utility-row button{flex:1 1 calc(50% - 8px);padding:9px 10px;border:1px solid var(--line);border-radius:10px;background:#fffaf3;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  .art-shell button:disabled{opacity:.48;cursor:not-allowed;filter:saturate(.45)}
   .hud{position:absolute;left:12px;bottom:10px;pointer-events:none;font-family:ui-monospace,Menlo,monospace;
     font-size:11px;color:#4a3a22;background:rgba(255,250,240,.85);border:1px solid rgba(180,140,60,.15);
     padding:4px 9px;border-radius:8px;backdrop-filter:blur(6px)}
@@ -187,10 +246,10 @@
     opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;max-width:80vw}
   .toast.show{opacity:1;transform:translateY(0)}
 
-  body.art-mode main.layout{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+  body.art-mode main.layout{grid-template-columns:1fr;}
   body.art-mode .side.left,body.art-mode .side.right{display:none}
-  body.art-mode .stage{display:flex;flex-direction:column;min-height:0}
-  body.art-mode .art-panel{display:flex}
+  body.art-mode .stage{display:none}
+  body.art-mode .art-shell{display:flex}
   @media (max-width:1140px){
     body{overflow:auto}
     main.layout{grid-template-columns:1fr;overflow:visible}
@@ -198,6 +257,21 @@
     .stage{order:-1}
     .canvas-wrap{min-height:56vh}
     .side{overflow:visible}
+    .art-surface{flex-direction:column}
+    .art-panel-stack{width:100%}
+    .art-asset-drawer{width:min(88vw,340px)}
+  }
+  @media (max-width:700px){
+    header{padding:12px 14px}
+    .logo{font-size:16px;letter-spacing:.1em}
+    .nav{margin-left:0;gap:6px}
+    .nav-btn{padding:7px 10px;letter-spacing:.1em}
+    .art-topbar{flex-wrap:wrap;justify-content:center}
+    .art-actions{width:100%;justify-content:center;flex-wrap:wrap}
+    .art-surface{padding:10px}
+    .art-canvas-panel{min-height:52vh}
+    .art-panel-stack{width:100%}
+    .art-asset-drawer{top:14px;right:14px;bottom:14px;width:min(86vw,320px)}
   }
 </style>
 </head>
@@ -236,10 +310,10 @@
     <section class="card">
       <h2>Grid Size <small id="gridStat">128×128</small></h2>
       <div class="slider-row">
-        <input type="range" id="inGrid" min="10" max="128" step="1" value="128">
+        <input type="range" id="inGrid" min="16" max="128" step="1" value="128">
         <output id="gridOut">128</output>
       </div>
-      <p class="hint">Rows snap to <b>10 · 12 · 20 · 25 · 32 · 64 · 128</b> (128 is the maximum). Columns follow the image aspect ratio automatically.</p>
+      <p class="hint">Rows snap to <b>16 · 32 · 64 · 96 · 128</b>. Columns follow the source aspect ratio automatically.</p>
     </section>
 
     <section class="card">
@@ -267,8 +341,8 @@
       <p class="hint">Doomed cells resist death with probability ≈ <b>strength × importance<sup>1.25</sup></b> (capped at 95% — nothing is immortal).</p>
     </section>
 
-    <section class="card">
-      <h2>Visual</h2>
+    <details class="card">
+      <summary><h2>Visual</h2></summary>
       <label class="switch"><input type="checkbox" id="dbgGrid" checked><span class="tg"></span>Show grid</label>
       <label class="switch"><input type="checkbox" id="dbgAge" checked><span class="tg"></span>Subtle age tinting</label>
       <label class="switch"><input type="checkbox" id="dbgSmooth"><span class="tg"></span>Smooth cell rendering</label>
@@ -285,10 +359,10 @@
         <button data-v="black"><i class="chip" style="background:#000"></i>Black</button>
         <button data-v="white"><i class="chip" style="background:#fff"></i>White</button>
       </div>
-    </section>
+    </details>
 
-    <section class="card">
-      <h2>Reconstruction</h2>
+    <details class="card">
+      <summary><h2>Reconstruction</h2></summary>
       <div class="slider-label"><span>Fill mode</span></div>
       <div class="seg" id="fillSeg" style="margin-top:6px">
         <button data-v="memory" class="active">MEMORY</button>
@@ -305,15 +379,15 @@
       <div class="slider-label"><span>Wave speed</span></div>
       <div class="slider-row"><input type="range" id="inRecSpd" min="25" max="400" value="100"><output id="recSpdOut">×1.0</output></div>
       <p class="hint" id="recHint"><b>MEMORY</b> (default): empty cells are recolonized by the <b>evolved image patches of their restored neighbors</b> — the image reforms as a memory of its journey. Surviving mutants keep their patches and flare as the wave passes. ORIGINAL = classic Gen-0 restore.</p>
-    </section>
+    </details>
 
-    <section class="card">
-      <h2>Simulation Speed</h2>
+    <details class="card">
+      <summary><h2>Simulation Speed</h2></summary>
       <div class="slider-row"><input type="range" id="inSpeed" min="1" max="30" value="12"><output id="speedOut">12 gps</output></div>
-    </section>
+    </details>
 
-    <section class="card">
-      <h2>Audio <small>procedural</small></h2>
+    <details class="card">
+      <summary><h2>Audio <small>procedural</small></h2></summary>
       <div style="display:flex;gap:8px;align-items:center">
         <label class="switch" style="flex:1"><input type="checkbox" id="sndOn"><span class="tg"></span>Sound effects</label>
         <button class="btn" id="sndTest" style="width:48px;flex:none;padding:8px 0" title="Test sound (also unlocks audio)">🔊</button>
@@ -328,7 +402,7 @@
       <div class="slider-label"><span>Drone level</span></div>
       <div class="slider-row"><input type="range" id="sndDroneVol" min="0" max="100" value="55"><output id="sndDroneVolOut">55%</output></div>
       <p class="hint"><b>Off by default</b> (browser autoplay rules). Click 🔊 once — it unlocks the audio engine and plays a test chime. Any click/keypress also wakes the engine if the browser suspended it.</p>
-    </section>
+    </details>
   </aside>
 
   <!-- ══════════ CENTER ══════════ -->
@@ -342,7 +416,7 @@
       <div class="transport" style="margin-left:auto">
         <button id="btnReset" class="tbtn" title="Reset to Gen 0 (R)" disabled>↺</button>
         <button id="btnStep"  class="tbtn" title="Next generation (→)">▶│</button>
-        <button id="btnPlay"  class="tbtn play" title="Play / Pause (Space)">▶</button>
+        <button id="btnPlay" class="tbtn play" aria-label="Morph evolution" title="Morph / Pause (Space)">MORPH</button>
         <button id="btnReplay" class="tbtn" title="Replay evolution (Y)">⟳</button>
         <button id="btnRecon" class="tbtn" title="Reconstruct now (C) — available while paused" disabled>✦</button>
       </div>
@@ -361,35 +435,108 @@
     </div>
   </section>
 
-  <section class="card art-panel" id="artWorkspace">
-    <div class="art-header">
-      <h2>Art Canvas</h2>
-      <span class="mono art-stat" id="artModeStat">Locked Cells · 0 (0.0%)</span>
+  <section class="art-shell" id="artShell" aria-label="Art workspace">
+    <div class="art-topbar">
+      <div class="art-brand"><span class="art-brand-mark">M</span><span>MORPHOGEN</span></div>
+      <div class="art-mode-switch" aria-label="Mode switch">
+        <button class="mode-btn" type="button" data-mode="simulate">Simulate</button>
+        <button class="mode-btn is-active" type="button" data-mode="art">Art</button>
+      </div>
+      <div class="art-actions">
+        <button class="mini-btn" type="button" id="artUndoBtn">Undo</button>
+        <button class="mini-btn" type="button" id="artRedoBtn">Redo</button>
+        <button class="mini-btn" type="button" id="artExportBtn">Export</button>
+        <button class="mini-btn" type="button" id="artFullscreenBtn">Fullscreen</button>
+      </div>
     </div>
-    <p class="art-sub">Structural skeleton · locked cells from input</p>
-    <div class="art-wrap" id="artWorkWrap">
-      <canvas id="artCanvas"></canvas>
+    <div class="art-surface">
+      <div class="art-canvas-panel" id="artCanvasPanel">
+        <canvas id="artCanvas" width="1200" height="760"></canvas>
+        <div class="art-empty-state show" id="artEmptyState">
+          <div class="art-empty-state-inner">
+            <h3>Create your composition</h3>
+            <p>Add images from Assets, then arrange your composition before fixing it for evolution.</p>
+            <div class="helper-row">
+              <button class="btn primary" type="button" id="artUploadCta">Upload images</button>
+              <button class="btn" type="button" id="artUseSourceBtn" hidden>Add source to composition</button>
+            </div>
+          </div>
+        </div>
+        <div class="art-drawer-tab" id="artDrawerTab">Assets</div>
+        <aside class="art-asset-drawer" id="artAssetDrawer" aria-label="Asset drawer">
+          <div class="art-drawer-header">
+            <h3>Assets</h3>
+            <button class="art-drawer-close" type="button" id="artDrawerClose" aria-label="Close asset drawer">×</button>
+          </div>
+          <div class="art-assets-list" id="artAssetsList"></div>
+          <button class="art-upload-btn" type="button" id="artUploadBtn">+ Add Image</button>
+        </aside>
+      </div>
+      <aside class="art-panel-stack" aria-label="Layer controls">
+        <div class="art-panel-section art-workflow" id="artWorkflowPanel">
+          <h3 id="artWorkflowTitle">COMPOSE</h3>
+          <p class="hint" id="artWorkflowHint">Arrange independent image layers. Your simulation source will not change until you generate a grid.</p>
+          <div class="art-workflow-editing" id="artWorkflowEditing">
+            <button class="btn primary" type="button" id="artFixateBtn" disabled>Fixate Composition</button>
+          </div>
+          <div class="art-workflow-fixated" id="artWorkflowFixated" hidden>
+            <div class="art-grid-picker">
+              <label class="art-field" for="artGridRows"><span>Grid resolution</span>
+                <select id="artGridRows">
+                  <option value="16">16 rows</option><option value="32">32 rows</option><option value="64">64 rows</option>
+                  <option value="96">96 rows</option><option value="128" selected>128 rows</option>
+                </select>
+              </label>
+              <output id="artGridSummary" class="mono">128 × 128 · 16,384 cells</output>
+            </div>
+            <div class="art-utility-row">
+              <button type="button" id="artEditAgainBtn">Edit Again</button>
+            </div>
+            <button class="btn primary" type="button" id="artGenerateGridBtn" disabled>Generate Grid</button>
+          </div>
+          <div class="art-workflow-ready" id="artWorkflowReady" hidden>
+            <canvas id="artGridPreview" width="480" height="300" aria-label="Fixated composition and locked skeleton preview"></canvas>
+            <p class="hint" id="artGridReadySummary"></p>
+            <div class="art-utility-row">
+              <button type="button" id="artLockGridBtn">Lock Grid</button>
+              <button type="button" id="artChangeGridBtn">Change Grid</button>
+              <button type="button" id="artEditCompositionBtn">Edit Composition</button>
+            </div>
+            <button class="btn primary" type="button" id="artSimulateBtn" disabled>Simulate Composition</button>
+          </div>
+        </div>
+        <div class="art-panel-section art-layer-controls" id="artLayersSection">
+          <h3>Layers</h3>
+          <div class="layer-list" id="artLayerList"></div>
+        </div>
+        <div class="art-panel-section art-layer-controls" id="artTransformsSection">
+          <h3>Transforms</h3>
+          <div class="art-transform-grid">
+            <label class="art-field"><span>X</span><input id="artPropX" type="number" step="1" value="0"></label>
+            <label class="art-field"><span>Y</span><input id="artPropY" type="number" step="1" value="0"></label>
+            <label class="art-field"><span>W</span><input id="artPropW" type="number" step="1" value="0"></label>
+            <label class="art-field"><span>H</span><input id="artPropH" type="number" step="1" value="0"></label>
+          </div>
+          <div class="art-slider" style="margin-top:10px">
+            <label for="artPropRotation"><span>Rotation</span><output id="artRotationValue">0°</output></label>
+            <input id="artPropRotation" type="range" min="-180" max="180" value="0">
+          </div>
+          <div class="art-slider" style="margin-top:10px">
+            <label for="artPropOpacity"><span>Opacity</span><output id="artOpacityValue">100%</output></label>
+            <input id="artPropOpacity" type="range" min="0" max="100" value="100">
+          </div>
+        </div>
+        <div class="art-panel-section art-layer-controls" id="artActionsSection">
+          <h3>Actions</h3>
+          <div class="art-utility-row">
+            <button type="button" id="artAddSkeletonBtn">Add Skeleton</button>
+            <button type="button" id="artDuplicateBtn">Duplicate</button>
+            <button type="button" id="artDeleteBtn">Delete</button>
+            <button type="button" id="artResetBtn">Reset</button>
+          </div>
+        </div>
+      </aside>
     </div>
-    <div class="art-controls">
-      <div class="control-row">
-        <label for="artFlow"><span>Flow Intensity</span><output id="artFlowOut">70%</output></label>
-        <input id="artFlow" type="range" min="10" max="100" value="70">
-      </div>
-      <div class="control-row">
-        <label for="artDensity"><span>Particle Density</span><output id="artDensityOut">1400</output></label>
-        <input id="artDensity" type="range" min="300" max="4000" step="50" value="1400">
-      </div>
-      <div class="control-row">
-        <label for="artTrail"><span>Trail Length</span><output id="artTrailOut">70%</output></label>
-        <input id="artTrail" type="range" min="10" max="90" value="70">
-      </div>
-      <div class="control-row">
-        <label for="artSpeed"><span>Motion / Speed</span><output id="artSpeedOut">1.0×</output></label>
-        <input id="artSpeed" type="range" min="20" max="200" value="100">
-      </div>
-      <button class="btn" id="artRegenerate" type="button">Regenerate</button>
-    </div>
-    <div class="art-stat mono" id="artLockStat">Locked Cells · 0 (0.0%)</div>
   </section>
 
   <!-- ══════════ RIGHT ══════════ -->
@@ -413,14 +560,14 @@
       </dl>
     </section>
 
-    <section class="card">
-      <h2>Debug Mode <small>inspector</small></h2>
+    <details class="card">
+      <summary><h2>Debug Mode <small>inspector</small></h2></summary>
       <label class="switch"><input type="checkbox" id="dbgOn" checked><span class="tg"></span>Enable cell inspector</label>
       <p class="hint">Hover to probe · click to pin.</p>
-    </section>
+    </details>
 
-    <section class="card">
-      <h2>Cell Inspector</h2>
+    <details class="card">
+      <summary><h2>Cell Inspector</h2></summary>
       <div class="hint" id="insEmpty">Hover over any cell…</div>
       <div id="insBody" hidden>
         <div class="ins-head">
@@ -451,10 +598,10 @@
           <dt>Age</dt>            <dd id="insAge" class="mono">–</dd>
         </dl>
       </div>
-    </section>
+    </details>
 
-    <section class="card">
-      <h2>Video Recording <small>canvas · webm/mp4</small></h2>
+    <details class="card">
+      <summary><h2>Video Recording <small>canvas · webm/mp4</small></h2></summary>
       <div class="slider-label"><span>Frame rate</span></div>
       <div class="seg" id="recFpsSeg" style="margin-top:6px">
         <button data-v="30" class="active">30 FPS</button>
@@ -474,7 +621,7 @@
       <p class="hint mono" id="recStatus">not recording</p>
       <p class="hint" id="recFormat">—</p>
       <p class="hint">Records ONLY the actual image/simulation at its native aspect ratio — no sidebars, toolbar, HUD or margins. Playback, zoom, pan and reconstruction continue while recording.</p>
-    </section>
+    </details>
 
     <section class="card">
       <h2>Export</h2>
@@ -526,7 +673,188 @@ const S={
   fadeStep:0.25, gap:0, gridAlpha:0.14, bg:'dark', smooth:false,
   speed:12, recMode:'outside', recFill:'memory', recMult:1.0, shimmer:true,
   playing:false, view:'sim', appMode:'simulate',
-  artFlow:0.7, artDensity:1400, artTrail:0.7, artSpeed:1.0, artSeed:1
+  artMode:'constellation', artDensity:1400, artConnections:0.45, artOpacity:0.35,
+  artSize:1.0, artMotion:0.35, artMotionSpeed:1.0, artGlow:0.45,
+  artVisibility:1.0, artSeed:1
+};
+const Art={
+  assets:[],
+  layers:[],
+  stage:'editing',
+  fixatedCanvas:null,
+  gridRows:128,
+  gridLocked:false,
+  selectedId:null,
+  history:[],
+  future:[],
+  drawerOpen:false,
+  nextId:1,
+  world:{width:1600,height:1000},
+  camera:{zoom:1,panX:0,panY:0},
+  interaction:null,
+  started:false,
+  assetInput:null,
+  snapshot(){ return JSON.stringify(this.layers); },
+  pushHistory(){ const snap=this.snapshot(); if(this.history.length && this.history[this.history.length-1]===snap) return; this.history.push(snap); if(this.history.length>40)this.history.shift(); this.future=[]; },
+  restoreFromSnapshot(snap){ try { const data=JSON.parse(snap); this.layers=Array.isArray(data)?data:[]; } catch { this.layers=[]; } if(this.layers.length){ if(!this.layers.some(layer=>layer.id===this.selectedId)) this.selectedId=this.layers[this.layers.length-1].id; } else { this.selectedId=null; } this.render(); this.syncLayerPanel(); this.updateWorkflow(); },
+  undo(){ if(!this.history.length)return; this.future.push(this.snapshot()); const snap=this.history.pop(); this.restoreFromSnapshot(snap); },
+  redo(){ if(!this.future.length)return; this.history.push(this.snapshot()); const snap=this.future.pop(); this.restoreFromSnapshot(snap); },
+  ensureCanvas(){ const canvas=$('#artCanvas'); if(!canvas)return; const rect=canvas.getBoundingClientRect(); const dpr=window.devicePixelRatio||1; const width=Math.max(1,Math.round(rect.width*dpr)); const height=Math.max(1,Math.round(rect.height*dpr)); if(canvas.width!==width||canvas.height!==height){ canvas.width=width; canvas.height=height; } return canvas.getContext('2d'); },
+  fitToWorld(){ const panel=$('#artCanvasPanel'); if(!panel) return; const rect=panel.getBoundingClientRect(); const padding=70; const maxW=Math.max(160,rect.width-padding); const maxH=Math.max(120,rect.height-padding); const zoom=Math.min(maxW/this.world.width,maxH/this.world.height,1.8); this.camera.zoom=Math.max(0.25,zoom); this.camera.panX=(rect.width-this.world.width*this.camera.zoom)/2; this.camera.panY=(rect.height-this.world.height*this.camera.zoom)/2; },
+  setDrawerOpen(open){ this.drawerOpen=open; const drawer=$('#artAssetDrawer'); if(!drawer) return; drawer.classList.toggle('is-open',open); const tab=$('#artDrawerTab'); if(tab) tab.setAttribute('aria-expanded',String(open)); },
+  addAsset(asset){ this.assets.push(asset); this.renderAssetDrawer(); this.updateWorkflow(); },
+  expectedGrid(rows=this.gridRows){ const aspect=this.fixatedCanvas?this.fixatedCanvas.width/this.fixatedCanvas.height:1; const cols=clamp(Math.round(rows*aspect),8,Math.min(512,Math.floor(262144/rows))); return {rows,cols,cells:rows*cols}; },
+  calculateInitialLayerSize(asset){
+    const logicalWidth = Math.max(900, this.world.width || 1200);
+    const logicalHeight = Math.max(600, this.world.height || 760);
+    const targetWidth = clamp(logicalWidth * 0.4, 220, logicalWidth * 0.72);
+    const assetWidth = Math.max(1, Number(asset?.width) || 1);
+    const assetHeight = Math.max(1, Number(asset?.height) || 1);
+    let width = targetWidth;
+    let height = assetHeight * (width / assetWidth);
+    const maxHeight = logicalHeight * 0.72;
+    if(height > maxHeight){
+      height = maxHeight;
+      width = assetWidth * (height / assetHeight);
+    }
+    return {
+      width: Math.max(40, width),
+      height: Math.max(40, height)
+    };
+  },
+  updateWorkflow(){
+    const shell=$('#artShell'); if(!shell)return; shell.dataset.stage=this.stage;
+    const labels={editing:['COMPOSE','Arrange independent layers. Fixate when the composition is ready.'],fixated:['COMPOSITION FIXATED','Choose and lock a grid before generating the simulation structure.'],ready:['STRUCTURE READY','The simulation grid and locked skeleton came from this complete composition.']};
+    $('#artWorkflowTitle').textContent=labels[this.stage][0]; $('#artWorkflowHint').textContent=labels[this.stage][1];
+    $('#artWorkflowEditing').hidden=this.stage!=='editing'; $('#artWorkflowFixated').hidden=this.stage!=='fixated'; $('#artWorkflowReady').hidden=this.stage!=='ready';
+    $('#artFixateBtn').disabled=!this.layers.some(layer=>layer.visible&&layer.kind==='image'&&this.getAsset(layer.assetId));
+    $('#artGridRows').value=String(this.gridRows); $('#artGridRows').disabled=this.gridLocked;
+    $('#artLockGridBtn').textContent=this.gridLocked?'Unlock Grid':'Lock Grid'; $('#artLockGridBtn').disabled=this.stage!=='ready';
+    $('#artGenerateGridBtn').disabled=!this.fixatedCanvas || this.stage!=='fixated';
+    $('#artSimulateBtn').disabled=this.stage!=='ready' || !this.gridLocked;
+    const grid=this.expectedGrid(); $('#artGridSummary').textContent=`${grid.rows} × ${grid.cols} · ${grid.cells.toLocaleString()} cells`;
+    if(this.stage==='ready' && this.fixatedCanvas){
+      $('#artGridReadySummary').textContent=`Grid ${S.rows} × ${S.cols} · ${N.toLocaleString()} cells · ${lockCount.toLocaleString()} locked`;
+    }
+    this.setDrawerOpen(this.stage==='editing'&&this.drawerOpen);
+  },
+  fixateComposition(){
+    if(this.stage!=='editing')return false;
+    const canvas=document.createElement('canvas'); canvas.width=this.world.width; canvas.height=this.world.height;
+    const ctx=canvas.getContext('2d'); ctx.fillStyle='#fffdf9'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    this.layers.filter(layer=>layer.visible).slice().sort((a,b)=>a.zIndex-b.zIndex).forEach(layer=>{
+      ctx.save(); ctx.translate(layer.x,layer.y); ctx.rotate(layer.rotation*Math.PI/180); ctx.globalAlpha=layer.opacity;
+      if(layer.kind==='skeleton')this.drawSkeletonLayer(ctx,layer);
+      else { const asset=this.getAsset(layer.assetId); if(asset?.image)ctx.drawImage(asset.image,-layer.width/2,-layer.height/2,layer.width,layer.height); }
+      ctx.restore();
+    });
+    this.fixatedCanvas=canvas; this.stage='fixated'; this.gridLocked=false; this.gridRows = Number($('#artGridRows')?.value || 128) || 128; this.setDrawerOpen(false); this.updateWorkflow(); this.render(); return true;
+  },
+  toggleGridLock(forceValue){
+    if(!this.fixatedCanvas || this.stage!=='ready')return false;
+    const next = typeof forceValue === 'boolean' ? forceValue : !this.gridLocked;
+    this.gridLocked = next;
+    this.updateWorkflow();
+    return this.gridLocked;
+  },
+  drawGridPreview(){
+    const canvas=$('#artGridPreview'),image=this.fixatedCanvas; if(!canvas||!image||!lock)return;
+    const ctx=canvas.getContext('2d'),width=canvas.width,height=canvas.height,scale=Math.min(width/image.width,height/image.height),dw=image.width*scale,dh=image.height*scale,ox=(width-dw)/2,oy=(height-dh)/2;
+    ctx.clearRect(0,0,width,height); ctx.fillStyle='#fff';ctx.fillRect(0,0,width,height);ctx.drawImage(image,ox,oy,dw,dh);
+    ctx.fillStyle='rgba(255,122,42,.65)'; const cellW=dw/S.cols,cellH=dh/S.rows;
+    for(let i=0;i<N;i++)if(lock[i]){const row=(i/S.cols)|0,col=i%S.cols;ctx.fillRect(ox+col*cellW,oy+row*cellH,Math.max(1,cellW),Math.max(1,cellH));}
+    $('#artGridReadySummary').textContent=`Grid ${S.rows} × ${S.cols} · ${N.toLocaleString()} cells · ${lockCount.toLocaleString()} locked`;
+  },
+  generateGrid(){
+    if(this.stage!=='fixated'||!this.fixatedCanvas)return false;
+    const rows=Number($('#artGridRows')?.value || this.gridRows) || this.gridRows;
+    this.gridRows = rows; S.rows=rows; S.cols=this.expectedGrid(rows).cols; S.aspect=true; S.view='sim';
+    setSource(this.fixatedCanvas,'fixated-composition.png'); this.stage='ready'; this.updateWorkflow(); this.drawGridPreview(); this.render(); return true;
+  },
+  getAsset(assetId){ return this.assets.find(a=>a.id===assetId) || null; },
+  addLayer(assetId,x=null,y=null,opts={}){
+    if(this.stage!=='editing')return null;
+    const asset=this.getAsset(assetId); if(!asset) return null;
+    const dims=this.calculateInitialLayerSize(asset); const layer={id:`layer-${this.nextId++}`,assetId,name:asset.name||'Image',x:x??this.world.width/2,y:y??this.world.height/2,width:opts.width??dims.width,height:opts.height??dims.height,rotation:opts.rotation??0,opacity:opts.opacity??1,visible:true,zIndex:this.layers.length+1,kind:'image'};
+    this.pushHistory(); this.layers.push(layer); this.selectedId=layer.id;
+    const worldCenterX = this.world.width / 2;
+    const worldCenterY = this.world.height / 2;
+    if(x==null) layer.x = worldCenterX;
+    if(y==null) layer.y = worldCenterY;
+    if(x==null && y==null){
+      layer.x = worldCenterX;
+      layer.y = worldCenterY;
+    }
+    this.fitToWorld();
+    this.renderAssetDrawer(); this.syncLayerPanel(); this.render(); this.updateWorkflow(); return layer;
+  },
+  deleteSelected(){ const idx=this.layers.findIndex(l=>l.id===this.selectedId); if(idx<0) return; this.pushHistory(); this.layers.splice(idx,1); this.selectedId=this.layers.length?this.layers[this.layers.length-1].id:null; this.syncLayerPanel(); this.render(); this.updateWorkflow(); },
+  duplicateSelected(){ const layer=this.layers.find(l=>l.id===this.selectedId); if(!layer) return; const clone={...layer,id:`layer-${this.nextId++}`,x:layer.x+40,y:layer.y+40}; this.pushHistory(); this.layers.push(clone); this.selectedId=clone.id; this.syncLayerPanel(); this.render(); this.updateWorkflow(); },
+  setSelected(id){ this.selectedId=id; this.syncLayerPanel(); this.render(); this.updateWorkflow(); },
+  getSelected(){ return this.layers.find(l=>l.id===this.selectedId) || null; },
+  scheduleRender(){ if(this.renderFrame) return; this.renderFrame=requestAnimationFrame(()=>{ this.renderFrame=0; this.render(); }); },
+  syncTransformFields(){ const layer=this.getSelected(); if(!layer)return; const x=$('#artPropX'),y=$('#artPropY'),w=$('#artPropW'),h=$('#artPropH'),rot=$('#artPropRotation'),op=$('#artPropOpacity'); if(x)x.value=String(Math.round(layer.x)); if(y)y.value=String(Math.round(layer.y)); if(w)w.value=String(Math.round(layer.width)); if(h)h.value=String(Math.round(layer.height)); if(rot){rot.value=String(Math.round(layer.rotation));$('#artRotationValue').textContent=`${Math.round(layer.rotation)}°`;} if(op){op.value=String(Math.round(layer.opacity*100));$('#artOpacityValue').textContent=`${Math.round(layer.opacity*100)}%`;} },
+  toggleLayerVisibility(id){ const layer=this.layers.find(l=>l.id===id); if(!layer) return; this.pushHistory(); layer.visible=!layer.visible; this.syncLayerPanel(); this.render(); this.updateWorkflow(); },
+  orderLayer(id,dir){ const idx=this.layers.findIndex(l=>l.id===id); if(idx<0) return; const next=dir>0?idx+1:idx-1; if(next<0||next>=this.layers.length) return; this.pushHistory(); const [item]=this.layers.splice(idx,1); this.layers.splice(next,0,item); this.layers.forEach((layer,idx2)=>layer.zIndex=idx2+1); this.syncLayerPanel(); this.render(); this.updateWorkflow(); },
+  bringToFront(){ const layer=this.getSelected(); if(!layer)return; this.pushHistory(); const items=this.layers.filter(l=>l.id!==layer.id); this.layers=[...items,layer]; this.layers.forEach((l,idx)=>l.zIndex=idx+1); this.syncLayerPanel(); this.render(); this.updateWorkflow(); },
+  sendToBack(){ const layer=this.getSelected(); if(!layer)return; this.pushHistory(); const items=this.layers.filter(l=>l.id!==layer.id); this.layers=[layer,...items]; this.layers.forEach((l,idx)=>l.zIndex=idx+1); this.syncLayerPanel(); this.render(); this.updateWorkflow(); },
+  addSkeletonLayer(){ const skeleton={id:`layer-${this.nextId++}`,assetId:null,name:'Skeleton',x:this.world.width/2,y:this.world.height/2,width:this.world.width,height:this.world.height,rotation:0,opacity:0.8,visible:true,zIndex:this.layers.length+1,kind:'skeleton'}; this.pushHistory(); this.layers.push(skeleton); this.selectedId=skeleton.id; this.syncLayerPanel(); this.render(); this.updateWorkflow(); },
+  renderAssetDrawer(){ const list=$('#artAssetsList'); if(!list) return; list.innerHTML=''; if(!this.assets.length){ list.innerHTML='<div class="art-empty-state-inner" style="padding:12px 10px; margin-top:8px; width:100%;"><h3 style="letter-spacing:.12em; margin:0 0 6px;">No images</h3><p style="font-size:11px; margin:0;">Upload a few references to start.</p></div>'; return; }
+    this.assets.forEach(asset=>{ const tile=document.createElement('div'); tile.className='asset-tile'; tile.draggable=this.stage==='editing'; tile.dataset.assetId=asset.id; tile.innerHTML=`<img src="${asset.thumbnail||asset.dataUrl}" alt="${asset.name}"><button class="asset-add-btn" type="button" aria-label="Add ${asset.name} to composition">+</button><div class="asset-name">${asset.name}</div>`; tile.addEventListener('dragstart',e=>{ if(this.stage!=='editing'){e.preventDefault();return;} e.dataTransfer.setData('text/plain',asset.id); e.dataTransfer.effectAllowed='copy'; }); tile.addEventListener('click',()=>this.addLayer(asset.id)); tile.querySelector('.asset-add-btn').addEventListener('click',event=>{event.stopPropagation();this.addLayer(asset.id);}); list.appendChild(tile); }); },
+  syncLayerPanel(){ const list=$('#artLayerList'); if(!list) return; list.innerHTML=''; if(!this.layers.length){ list.innerHTML='<div class="hint" style="margin:0; font-size:11px;">No layers yet</div>'; } else { this.layers.slice().reverse().forEach(layer=>{ const row=document.createElement('div'); row.className='layer-item'+(this.selectedId===layer.id?' is-selected':''); row.innerHTML=`<div class="layer-thumb">${layer.kind==='image' && layer.assetId ? `<img src="${this.getAsset(layer.assetId)?.thumbnail || this.getAsset(layer.assetId)?.dataUrl || ''}" alt="${layer.name}">` : ''}</div><div class="layer-meta"><span class="layer-name">${layer.name}</span><span class="layer-type">${layer.kind}</span></div><button class="layer-toggle" type="button" aria-label="Toggle visibility">${layer.visible ? '◉' : '○'}</button>`; row.addEventListener('click',e=>{ if(e.target.closest('.layer-toggle')){ this.toggleLayerVisibility(layer.id); return; } this.setSelected(layer.id); }); list.appendChild(row); }); }
+    const selected=this.getSelected(); const x=$('#artPropX'), y=$('#artPropY'), w=$('#artPropW'), h=$('#artPropH'), rot=$('#artPropRotation'), op=$('#artPropOpacity'); if(!selected){ if(x)x.value='0'; if(y)y.value='0'; if(w)w.value='0'; if(h)h.value='0'; if(rot)rot.value='0'; if(op)op.value='100'; $('#artRotationValue').textContent='0°'; $('#artOpacityValue').textContent='100%'; return; }
+    if(x)x.value=String(Math.round(selected.x)); if(y)y.value=String(Math.round(selected.y)); if(w)w.value=String(Math.round(selected.width)); if(h)h.value=String(Math.round(selected.height)); if(rot){ rot.value=String(Math.round(selected.rotation)); $('#artRotationValue').textContent=`${Math.round(selected.rotation)}°`; } if(op){ op.value=String(Math.round(selected.opacity*100)); $('#artOpacityValue').textContent=`${Math.round(selected.opacity*100)}%`; }
+  },
+  render(){ const canvas=$('#artCanvas'); const ctx=this.ensureCanvas(); if(!canvas||!ctx) return;
+    this.updateWorkflow();
+    const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1,cssW=rect.width,cssH=rect.height;
+    ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,cssW,cssH); ctx.fillStyle='#f8f4ef'; ctx.fillRect(0,0,cssW,cssH);
+    ctx.save(); ctx.translate(this.camera.panX,this.camera.panY); ctx.scale(this.camera.zoom,this.camera.zoom);
+    const layers=this.layers.filter(layer=>layer.visible).sort((a,b)=>a.zIndex-b.zIndex);
+    layers.forEach(layer=>{ if(layer.kind==='skeleton'){this.drawSkeletonLayer(ctx,layer);return;} const asset=this.getAsset(layer.assetId); if(!asset)return; ctx.save(); ctx.translate(layer.x,layer.y); ctx.rotate(layer.rotation*Math.PI/180); ctx.globalAlpha=layer.opacity; ctx.drawImage(asset.image,-layer.width/2,-layer.height/2,layer.width,layer.height); ctx.restore(); });
+    const layer=this.getSelected();
+    if(this.stage==='editing'&&layer&&layer.visible){
+      ctx.save(); ctx.translate(layer.x,layer.y); ctx.rotate(layer.rotation*Math.PI/180); ctx.strokeStyle='#ff9a3d'; ctx.lineWidth=2/this.camera.zoom; ctx.setLineDash([8/this.camera.zoom,6/this.camera.zoom]); ctx.strokeRect(-layer.width/2,-layer.height/2,layer.width,layer.height); ctx.setLineDash([]);
+      const radius=7/this.camera.zoom,handles=[[-layer.width/2,-layer.height/2],[0,-layer.height/2],[layer.width/2,-layer.height/2],[layer.width/2,0],[layer.width/2,layer.height/2],[0,layer.height/2],[-layer.width/2,layer.height/2],[-layer.width/2,0]];
+      handles.forEach(([x,y])=>{ctx.beginPath();ctx.arc(x,y,radius,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.strokeStyle='#ff9a3d';ctx.lineWidth=2/this.camera.zoom;ctx.stroke();}); ctx.restore();
+    }
+    ctx.restore(); const empty=$('#artEmptyState'); if(empty) empty.classList.toggle('show', this.layers.length === 0 && this.assets.length === 0);
+  },
+  drawSkeletonLayer(ctx,layer){ const cells=Math.max(12,Math.min(32,S.rows));
+    ctx.save(); ctx.translate(layer.x,layer.y); ctx.rotate(layer.rotation * Math.PI/180); ctx.globalAlpha=layer.opacity; ctx.strokeStyle='rgba(71,44,22,.76)'; ctx.lineWidth=Math.max(1,2.5 * (layer.width/this.world.width));
+    ctx.beginPath(); const stepX = layer.width / cells; const stepY = layer.height / cells;
+    for(let y=0;y<cells;y++){
+      for(let x=0;x<cells;x++){
+        const cell = lock && x < S.cols && y < S.rows ? lock[(Math.floor(y / cells * S.rows) * S.cols) + Math.floor(x / cells * S.cols)] : 0;
+        if(cell){
+          const px=-layer.width/2 + x*stepX; const py=-layer.height/2 + y*stepY;
+          ctx.moveTo(px,py); ctx.lineTo(px+stepX*0.8,py+stepY*0.8);
+        }
+      }
+    }
+    ctx.stroke(); ctx.restore();
+  },
+  localPoint(layer,worldX,worldY){ const dx=worldX-layer.x; const dy=worldY-layer.y; const angle=-layer.rotation*Math.PI/180; const cos=Math.cos(angle); const sin=Math.sin(angle); return {x:dx*cos-dy*sin,y:dx*sin+dy*cos}; },
+  hitTest(worldX,worldY){ const tolerance=1/this.camera.zoom; for(let i=this.layers.length-1;i>=0;i--){ const layer=this.layers[i]; if(!layer.visible) continue; const p=this.localPoint(layer,worldX,worldY); if(Math.abs(p.x)<=layer.width/2+tolerance && Math.abs(p.y)<=layer.height/2+tolerance) return layer; } return null; },
+  pointerToWorld(event){ const rect=$('#artCanvas').getBoundingClientRect(); const sx=event.clientX-rect.left; const sy=event.clientY-rect.top; return {x:(sx-this.camera.panX)/this.camera.zoom,y:(sy-this.camera.panY)/this.camera.zoom}; },
+  beginInteraction(type, layerId, event){ const world=this.pointerToWorld(event); const layer=this.layers.find(l=>l.id===layerId) || null; this.pushHistory(); this.interaction={type,layerId,startWorld:{...world},startLayer:layer?{...layer}:null}; },
+  onPointerDown(event){ if(this.stage!=='editing')return; const target=event.target.closest('.asset-tile'); if(target) return;
+    const point=this.pointerToWorld(event); const hit=this.hitTest(point.x,point.y); if(hit){ this.selectedId=hit.id; this.syncLayerPanel(); this.render(); const layer=this.getSelected(); const local=this.localPoint(layer,point.x,point.y); const handles=[{name:'nw',x:-layer.width/2,y:-layer.height/2},{name:'n',x:0,y:-layer.height/2},{name:'ne',x:layer.width/2,y:-layer.height/2},{name:'e',x:layer.width/2,y:0},{name:'se',x:layer.width/2,y:layer.height/2},{name:'s',x:0,y:layer.height/2},{name:'sw',x:-layer.width/2,y:layer.height/2},{name:'w',x:-layer.width/2,y:0}]; const hitHandle=handles.findIndex(h=>Math.abs(local.x-h.x)<=22/this.camera.zoom && Math.abs(local.y-h.y)<=22/this.camera.zoom); if(hitHandle>=0){ this.beginInteraction('resize',hit.id,event); this.interaction.handle=handles[hitHandle].name; } else this.beginInteraction('move',hit.id,event); } else { this.selectedId=null; this.syncLayerPanel(); this.render(); this.interaction={type:'pan',startX:event.clientX,startY:event.clientY,panX:this.camera.panX,panY:this.camera.panY}; } event.currentTarget.setPointerCapture?.(event.pointerId); },
+  onPointerMove(event){ if(!this.interaction) return; const point=this.pointerToWorld(event); if(this.interaction.type==='pan'){ const dx=event.clientX-this.interaction.startX; const dy=event.clientY-this.interaction.startY; this.camera.panX=this.interaction.panX+dx; this.camera.panY=this.interaction.panY+dy; this.scheduleRender(); return; } const layer=this.layers.find(l=>l.id===this.interaction.layerId); if(!layer) return; if(this.interaction.type==='move'){ const dx=point.x-this.interaction.startWorld.x; const dy=point.y-this.interaction.startWorld.y; layer.x=this.interaction.startLayer.x+dx; layer.y=this.interaction.startLayer.y+dy; this.syncTransformFields(); this.scheduleRender(); return; } if(this.interaction.type==='resize'){ const start=this.interaction.startLayer; const dx=point.x-this.interaction.startWorld.x; const dy=point.y-this.interaction.startWorld.y; const angle=-start.rotation*Math.PI/180; const localX=dx*Math.cos(angle)-dy*Math.sin(angle); const localY=dx*Math.sin(angle)+dy*Math.cos(angle); const handle=this.interaction.handle||'se'; const sx=handle.includes('e')?1:handle.includes('w')?-1:0; const sy=handle.includes('s')?1:handle.includes('n')?-1:0; let width=Math.max(40,start.width+sx*localX*2); let height=Math.max(40,start.height+sy*localY*2); if(sx&&sy&&!event.shiftKey){ const scale=Math.max(width/start.width,height/start.height); width=Math.max(40,start.width*scale); height=Math.max(40,start.height*scale); } const dw=width-start.width,dh=height-start.height; const shiftX=-sx*dw/2,shiftY=-sy*dh/2; const rotate=start.rotation*Math.PI/180; layer.x=start.x+shiftX*Math.cos(rotate)-shiftY*Math.sin(rotate); layer.y=start.y+shiftX*Math.sin(rotate)+shiftY*Math.cos(rotate); layer.width=width; layer.height=height; this.syncTransformFields(); this.scheduleRender(); } },
+  onPointerUp(){ if(this.interaction && this.interaction.type!=='pan'){ this.syncLayerPanel(); this.render(); } this.interaction=null; },
+  register(){ const canvas=$('#artCanvas'); if(!canvas) return; document.getElementById('artDrawerTab').addEventListener('click',()=>this.setDrawerOpen(!this.drawerOpen)); document.getElementById('artDrawerClose').addEventListener('click',()=>this.setDrawerOpen(false)); document.getElementById('artUploadBtn').addEventListener('click',()=>this.assetInput.click()); document.getElementById('artUploadCta').addEventListener('click',()=>this.assetInput.click()); document.getElementById('artUseSourceBtn').addEventListener('click',()=>{ if(srcImg){ this.addLayerFromImage(srcImg, 'Current image'); } }); document.getElementById('artFixateBtn').addEventListener('click',()=>{ if(this.fixateComposition()){ toast('Composition fixated — ready for grid generation'); } }); document.getElementById('artGridRows').addEventListener('change',()=>{ const next = Number(document.getElementById('artGridRows').value) || 128; this.gridRows = clamp(next,16,512); this.updateWorkflow(); }); document.getElementById('artLockGridBtn').addEventListener('click',()=>{ const locked = this.toggleGridLock(); if(locked){ toast(`Grid locked at ${this.gridRows} × ${this.expectedGrid().cols}`); } else { toast('Grid unlocked — you can adjust resolution'); } }); document.getElementById('artGenerateGridBtn').addEventListener('click',()=>{ const ok = this.generateGrid(); if(ok){ toast('Grid generated from the fixated composition'); } }); document.getElementById('artEditAgainBtn').addEventListener('click',()=>{ this.stage='editing'; this.gridLocked=false; this.updateWorkflow(); this.setDrawerOpen(true); this.render(); }); document.getElementById('artChangeGridBtn').addEventListener('click',()=>{ this.stage='fixated'; this.gridLocked=false; this.updateWorkflow(); }); document.getElementById('artEditCompositionBtn').addEventListener('click',()=>{ this.stage='editing'; this.gridLocked=false; this.updateWorkflow(); this.setDrawerOpen(true); this.render(); }); document.getElementById('artSimulateBtn').addEventListener('click',()=>{ if(this.stage==='fixated'){ if(!this.gridLocked) this.toggleGridLock(true); if(!this.generateGrid()) return; } else if(this.stage!=='ready' || !this.fixatedCanvas) return; setAppMode('simulate'); setPlaying(true); toast('Morphogen evolution started from your composition'); }); document.getElementById('artAddSkeletonBtn').addEventListener('click',()=>this.addSkeletonLayer()); document.getElementById('artDeleteBtn').addEventListener('click',()=>this.deleteSelected()); document.getElementById('artDuplicateBtn').addEventListener('click',()=>this.duplicateSelected()); document.getElementById('artResetBtn').addEventListener('click',()=>{ this.pushHistory(); this.layers=[]; this.selectedId=null; this.render(); this.syncLayerPanel(); }); document.getElementById('artUndoBtn').addEventListener('click',()=>this.undo()); document.getElementById('artRedoBtn').addEventListener('click',()=>this.redo()); document.getElementById('artExportBtn').addEventListener('click',()=>this.exportImage()); document.getElementById('artFullscreenBtn').addEventListener('click',()=>{ const el=document.getElementById('artCanvasPanel'); if(!document.fullscreenElement) el.requestFullscreen?.(); else document.exitFullscreen?.(); }); document.getElementById('artCanvasPanel').addEventListener('dragover',e=>{e.preventDefault(); e.dataTransfer.dropEffect='copy';}); document.getElementById('artCanvasPanel').addEventListener('drop', e=>{ e.preventDefault(); const assetId=e.dataTransfer.getData('text/plain'); const world=this.pointerToWorld(e); if(assetId){ this.addLayer(assetId, world.x, world.y); } else { const fileInput=this.assetInput; if(fileInput) { fileInput.files = e.dataTransfer.files; if(fileInput.files.length) this.uploadFiles(Array.from(fileInput.files)); } } }); canvas.addEventListener('pointerdown', e=>this.onPointerDown(e)); canvas.addEventListener('pointermove', e=>this.onPointerMove(e)); canvas.addEventListener('pointerup', ()=>this.onPointerUp()); canvas.addEventListener('pointerleave', ()=>this.onPointerUp()); this.assetInput=document.createElement('input'); this.assetInput.type='file'; this.assetInput.id='artAssetInput'; this.assetInput.multiple=true; this.assetInput.accept='.png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp'; this.assetInput.hidden=true; this.assetInput.addEventListener('change',()=>{ if(this.assetInput.files) this.uploadFiles(Array.from(this.assetInput.files)); this.assetInput.value=''; }); document.body.appendChild(this.assetInput); this.syncLayerPanel(); this.render(); },
+  uploadFiles(files){ const uploadList=files.filter(file=>file&&/image\/(png|jpeg|webp)/i.test(file.type));
+    uploadList.forEach(file=>{ const reader=new FileReader();
+      reader.onload=()=>{ const image=new Image();
+        image.onload=()=>{ const asset={id:`asset-${Date.now()}-${Math.random().toString(16).slice(2)}`,name:file.name.replace(/\.[^.]+$/,''),dataUrl:String(reader.result),image,thumbnail:String(reader.result),width:image.naturalWidth||image.width,height:image.naturalHeight||image.height};
+        this.addAsset(asset); };
+        image.src=String(reader.result); };
+      reader.readAsDataURL(file); });
+  },
+  addLayerFromImage(img,name='Current image'){ const preview=name==='Current image'&&work.width?work.toDataURL():img.src; const asset={id:`asset-${Date.now()}-${Math.random().toString(16).slice(2)}`,name,dataUrl:preview,thumbnail:preview,image:img,width:img.naturalWidth||img.width,height:img.naturalHeight||img.height}; this.addAsset(asset); const layer=this.addLayer(asset.id,this.world.width/2,this.world.height/2); if(layer) this.selectedId=layer.id; },
+  exportImage(){ const exportCanvas=document.createElement('canvas'); exportCanvas.width=this.world.width; exportCanvas.height=this.world.height; const ctx=exportCanvas.getContext('2d'); ctx.fillStyle='#fdfaf5'; ctx.fillRect(0,0,exportCanvas.width,exportCanvas.height); const visible=this.layers.filter(l=>l.visible).sort((a,b)=>a.zIndex-b.zIndex);
+    visible.forEach(layer=>{ if(layer.kind==='skeleton'){ this.drawSkeletonLayer(ctx, {...layer, x: layer.x, y: layer.y, width: layer.width, height: layer.height, opacity: layer.opacity }); return; } const asset=this.getAsset(layer.assetId); if(!asset||!asset.image) return; ctx.save(); ctx.translate(layer.x,layer.y); ctx.rotate(layer.rotation*Math.PI/180); ctx.globalAlpha=layer.opacity; ctx.drawImage(asset.image,-layer.width/2,-layer.height/2,layer.width,layer.height); ctx.restore(); });
+    const link=document.createElement('a'); link.href=exportCanvas.toDataURL('image/png'); link.download='morphogen-art.png'; link.click(); }
 };
 let srcImg=null;
 
@@ -537,12 +865,13 @@ let srcImg=null;
    - regR/G/B: per-region average color, kept ONLY as metadata for the
      inspector, importance/mutation statistics and reconstruction hints. */
 let N=0, lock=null, lockCount=0, importance=null, oR=null,oG=null,oB=null;
+let lockRevision=0;
 let RX0=null,RY0=null,RW=null,RH=null;
 let regR=null,regG=null,regB=null;
 
 /* DOUBLE BUFFERED dynamic state — every cell now stores a REGION id
    (which source-image patch it currently carries) instead of an RGB. */
-function makeBuf(){return{alive:new Uint8Array(N),region:new Uint16Array(N),
+function makeBuf(){return{alive:new Uint8Array(N),region:new Uint32Array(N),
   fade:new Float32Array(N),age:new Uint16Array(N)};}
 let cur=null,nxt=null,gen0Snap=null;
 
@@ -880,14 +1209,12 @@ function setSource(img,name){
   $('#srcMeta').textContent=`${img.width}×${img.height}px · ${name}`;
   if(S.aspect)setDims(S.rows,aspectCols(S.rows));
   else rebuildAll(true);
-  if(S.appMode==='art') FlowFieldArt.refresh();
   toast(`Loaded “${name}”`,3400);
 }
 
 function aspectCols(rows){
   if(!S.aspect||!srcImg||!work.width||!work.height)return rows;
-  /* columns follow the image aspect ratio, but 128 is the absolute grid maximum */
-  return clamp(Math.round(rows*work.width/work.height),8,128);
+  return clamp(Math.round(rows*work.width/work.height),8,Math.min(512,Math.floor(262144/rows)));
 }
 
 /* ═════════════════ ANALYSIS SAMPLING ═════════════════
@@ -1001,6 +1328,7 @@ function computeImportance(avg,R,C,sens){
 function applyLockMask(edge,R,C){
   const targets=Math.round(N*Math.pow(S.structPct,1.6));
   lock=new Uint8Array(N);
+  lockRevision++;
   lockCount=Math.min(targets,N);
   if(targets<=0)return;
   const idx=Array.from({length:N},(_,i)=>i).sort((a,b)=>edge[b]-edge[a]);
@@ -1021,7 +1349,6 @@ function rebuildAll(fit){
   applyLockMask(edge,S.rows,S.cols);
   $('#lockStat').textContent=`${lockCount} cells · ${((lockCount/N)*100).toFixed(1)}%`;
   if($('#artLockStat'))$('#artLockStat').textContent=`Locked Cells · ${lockCount} (${((lockCount/N)*100).toFixed(1)}%)`;
-  if(S.appMode==='art') FlowFieldArt.refresh();
   renderArtCanvas();
   /* keep the grid slider/labels in sync with the actual grid */
   $('#gridStat').textContent=S.rows+'×'+S.cols;
@@ -1184,7 +1511,9 @@ function setPlaying(v){
   if(v&&phase==='idle')phase='running';
   S.playing=v;
   const b=$('#btnPlay');
-  b.textContent=v?'⏸':'▶';b.classList.toggle('playing',v);
+  b.textContent=v?'PAUSE':'MORPH';
+  b.setAttribute('aria-label',v?'Pause evolution':'Morph evolution');
+  b.classList.toggle('playing',v);
   syncTransport();
 }
 function syncTransport(){
@@ -1216,7 +1545,7 @@ function setStatus(){
   rw.style.display=phase==='reconstructing'?'block':'none';
   const col=c=>{t.style.color=c;chip.style.color=c;chip.style.borderColor=c+'55';};
   if(phase==='idle'){t.textContent='READY — GENERATION 0';col('var(--good)');chip.textContent='READY';
-    s.innerHTML='Press <b>▶ Play</b>. Runs until extinction, stability, or a loop — or pause anytime and press <b>✦ Reconstruct</b>.';}
+    s.innerHTML='Press <b>MORPH</b> to begin. Runs until extinction, stability, or a loop — pause anytime, then <b>✦ Reconstruct</b>.';}
   else if(phase==='running'){t.textContent='EVOLVING…';col('var(--cyan)');chip.textContent='RUNNING';
     s.innerHTML='Interior mutating · skeleton holding. Pause anytime, then <b>✦</b> to reconstruct from here.';}
   else if(phase==='complete'){
@@ -1310,7 +1639,7 @@ function startReconstruction(){
     snapRegion:cur.region.slice(),   /* the patch each cell had when the wave started */
     snapF:cur.fade.slice(),
     fromAlive:cur.alive.slice(),
-    tRegion:new Uint16Array(N),      /* target patch for each cell */
+    tRegion:new Uint32Array(N),      /* target patch for each cell */
     over:new Float32Array(N),        /* cross-fade progress snapshot→target (for painters) */
     dur:new Float32Array(N),
     mode:S.recFill,
@@ -1413,6 +1742,7 @@ function updateStats(){
 /* ═════════════════ RENDERING ═════════════════ */
 const canvas=$('#board'),ctx=canvas.getContext('2d'),wrap=$('#canvasWrap');
 const artCanvas=$('#artCanvas'), artCtx=artCanvas&&artCanvas.getContext('2d'), artWrap=$('#artWorkWrap');
+const artStatic=document.createElement('canvas'), artStaticCtx=artStatic.getContext('2d');
 const view={x:0,y:0,scale:14};
 
 const FlowFieldArt=(()=>{
@@ -1602,21 +1932,132 @@ const FlowFieldArt=(()=>{
   return { refresh, tick, regenerate };
 })();
 
+/* ═════════════════ PARTICLE CONSTELLATION ART ═════════════════
+   This is intentionally independent from FlowFieldArt. Its particles have
+   fixed image-derived destinations and only use motion for a restrained life. */
+const ParticleConstellationArt=(()=>{
+  let particles=[], links=[], key='', lastGen=-1, reveal=0, started=0;
+  let width=0,height=0, pointer=null;
+  const ink=[[28,35,66],[52,42,88],[39,61,92],[92,55,100],[31,31,38]];
+
+  const hash=n=>{const x=Math.sin(n*91.173+S.artSeed*17.71)*43758.5453;return x-Math.floor(x);};
+  const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+  const color=(r,g,b,a)=>`rgba(${r|0},${g|0},${b|0},${a})`;
+
+  function build(){
+    if(!lock||!N)return;
+    width=artCanvas.width;height=artCanvas.height;
+    particles=[];
+    /* The lock mask is the only geometry source: one node for every locked cell. */
+    for(let i=0;i<N;i++)if(lock[i]){
+      const row=(i/S.cols)|0,col=i%S.cols;
+      const originalX=(col+.5)*width/S.cols,originalY=(row+.5)*height/S.rows;
+      const importanceLevel=importance?importance[i]:0;
+      const feature=clamp(.35+importanceLevel*.75,0,1);
+      particles.push({row,col,cell:i,locked:true,originalX,originalY,x:originalX,y:originalY,
+        phase:hash(i+S.artSeed*13)*Math.PI*2,layer:feature,size:.65+feature*1.1,
+        color:ink[i%ink.length],active:!!(cur&&cur.alive[i]),visible:hash(i+S.artSeed*29)>.08});
+    }
+    buildLinks();
+    renderStaticLinks();
+    reveal=0;started=performance.now();lastGen=gen;
+  }
+
+  function buildLinks(){
+    links=[];const buckets=new Map(),cellWidth=width/S.cols,cellHeight=height/S.rows;
+    const radius=Math.max(cellWidth,cellHeight)*(1.8+S.artConnections*5),maxLinks=2+Math.round(S.artConnections*4);
+    const bucketSize=Math.max(radius,12);
+    particles.forEach((p,i)=>{const k=Math.floor(p.originalX/bucketSize)+','+Math.floor(p.originalY/bucketSize);if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(i);});
+    for(let i=0;i<particles.length;i++){
+      const p=particles[i],bx=Math.floor(p.originalX/bucketSize),by=Math.floor(p.originalY/bucketSize),near=[];
+      for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+        const list=buckets.get((bx+dx)+','+(by+dy))||[];
+        for(const j of list)if(j!==i){const q=particles[j],d=Math.hypot(p.originalX-q.originalX,p.originalY-q.originalY);if(d<=radius)near.push({j,d});}
+      }
+      near.sort((a,b)=>a.d-b.d);
+      for(const n of near.slice(0,maxLinks))if(i<n.j)links.push([i,n.j,n.d]);
+    }
+  }
+
+  function renderStaticLinks(){
+    artStatic.width=width;artStatic.height=height;
+    artStaticCtx.setTransform(1,0,0,1,0,0);
+    artStaticCtx.clearRect(0,0,width,height);
+    artStaticCtx.lineWidth=.55;
+    artStaticCtx.strokeStyle='rgba(39,47,84,.42)';
+    for(const [a,b] of links){
+      const pa=particles[a],pb=particles[b];
+      artStaticCtx.beginPath();artStaticCtx.moveTo(pa.originalX,pa.originalY);
+      artStaticCtx.lineTo(pb.originalX,pb.originalY);artStaticCtx.stroke();
+    }
+  }
+
+  function refresh(){
+    if(!artCanvas||!artWrap)return;
+    const nextKey=`${lockRevision}:${N}:${S.rows}x${S.cols}:${artCanvas.width}x${artCanvas.height}:${S.artSeed}:${S.artConnections}`;
+    let rebuilt=false;
+    if(nextKey!==key){key=nextKey;build();rebuilt=true;}
+    if(gen!==lastGen){
+      particles.forEach(p=>{p.active=!!(cur&&cur.alive[p.cell]);});
+      lastGen=gen;
+      rebuilt=true;
+    }
+    if(rebuilt){
+      $('#artLockStat').textContent=`Locked particles · ${particles.length} · Links · ${links.length}`;
+      $('#artModeStat').textContent=`Particle Constellation · GEN ${gen}`;
+    }
+  }
+
+  function tick(dt){
+    if(!artCanvas||!artCtx||!artWrap||S.appMode!=='art')return;
+    refresh();if(!particles.length)return;
+    const now=performance.now();reveal=clamp((now-started)/5200,0,1);
+    const motion=S.artMotion, glow=S.artGlow, mouse=pointer, speed=S.artMotionSpeed;
+    artCtx.setTransform(1,0,0,1,0,0);artCtx.fillStyle='#fffdf9';artCtx.fillRect(0,0,width,height);
+    artCtx.globalAlpha=S.artOpacity;artCtx.drawImage(artStatic,0,0);artCtx.globalAlpha=1;
+    for(const p of particles){
+      const formed=clamp(reveal*1.25,0,1),amplitude=(1-formed)*18+motion*2.5;
+      const targetX=p.originalX+Math.sin(now*.0007*speed+p.phase)*amplitude;
+      const targetY=p.originalY+Math.cos(now*.00063*speed+p.phase)*amplitude;
+      p.x=targetX;p.y=targetY;
+      if(mouse){const dx=p.x-mouse.x,dy=p.y-mouse.y,d=Math.hypot(dx,dy)||1;if(d<90){const f=(1-d/90)*motion*5;p.x+=dx/d*f;p.y+=dy/d*f;}}
+      const brightness=(.18+p.layer*.82)*(p.active?.92:.48)*formed;
+      const densityFraction=clamp(S.artDensity/Math.max(1,particles.length),0,1);
+      const visible=p.visible<=Math.min(S.artVisibility,densityFraction);
+      p._a=brightness*(visible?1:0);p._r=p.size*S.artSize;
+    }
+    artCtx.shadowBlur=0;
+    for(const p of particles){
+      if(p._a<.025)continue;
+      artCtx.fillStyle=color(p.color[0],p.color[1],p.color[2],p._a);
+      artCtx.beginPath();artCtx.arc(p.x,p.y,p._r,0,Math.PI*2);artCtx.fill();
+      if(glow>.05&&p.layer>.72){
+        artCtx.shadowBlur=glow*4;artCtx.shadowColor=color(p.color[0],p.color[1],p.color[2],p._a*.28);
+        artCtx.fill();artCtx.shadowBlur=0;
+      }
+    }
+    artCtx.shadowBlur=0;
+  }
+
+  function regenerate(){key='';particles=[];links=[];refresh();}
+  function pointerMove(e){const r=artCanvas.getBoundingClientRect();pointer={x:(e.clientX-r.left)*(artCanvas.width/r.width),y:(e.clientY-r.top)*(artCanvas.height/r.height)};}
+  function pointerLeave(){pointer=null;}
+  return {refresh,tick,regenerate,pointerMove,pointerLeave};
+})();
+
 function sizeArtCanvas(){
   if(!artCanvas||!artWrap)return;
-  const dpr=window.devicePixelRatio||1;
+  const dpr=Math.min(window.devicePixelRatio||1,1.5);
   const w=artWrap.clientWidth||artCanvas.clientWidth||320;
   const h=artWrap.clientHeight||artCanvas.clientHeight||320;
-  artCanvas.width=Math.max(1,Math.round(w*dpr));
-  artCanvas.height=Math.max(1,Math.round(h*dpr));
-  if(artCanvas.width && artCanvas.height){
-    FlowFieldArt.refresh();
-  }
+  const maxDimension=1800,scale=Math.min(dpr,maxDimension/Math.max(w,h));
+  artCanvas.width=Math.max(1,Math.round(w*scale));
+  artCanvas.height=Math.max(1,Math.round(h*scale));
+  if(S.appMode==='art') Art.render();
 }
 
 function renderArtCanvas(){
-  if(!artCtx||!artCanvas||!work||!lock||!RX0||!RY0||!RW||!RH)return;
-  FlowFieldArt.refresh();
+  if(S.appMode==='art' && Art && typeof Art.render==='function') Art.render();
 }
 
 if(artWrap) new ResizeObserver(()=>{sizeArtCanvas();renderArtCanvas();}).observe(artWrap);
@@ -1626,18 +2067,19 @@ function sizeCanvas(){
   canvas.width=Math.max(1,Math.round(wrap.clientWidth*dpr));
   canvas.height=Math.max(1,Math.round(wrap.clientHeight*dpr));
 }
-new ResizeObserver(()=>{sizeCanvas();needRender=true;}).observe(wrap);
+new ResizeObserver(()=>{sizeCanvas();fitView(); if(S.appMode==='art' && Art && Art.fitToWorld) { Art.fitToWorld(); Art.render(); } needRender=true;}).observe(wrap);
 
 function fitView(){
-  const W=wrap.clientWidth,H=wrap.clientHeight,m=36;
-  view.scale=clamp(Math.min((W-m)/S.cols,(H-m)/S.rows),1,80);
+  const W=wrap.clientWidth||1,H=wrap.clientHeight||1,m=36;
+  const targetW=Math.max(1, W-m), targetH=Math.max(1, H-m);
+  const fitScale=Math.min(targetW/Math.max(1,S.cols), targetH/Math.max(1,S.rows));
+  view.scale=clamp(fitScale,0.1,80);
   view.x=(W-S.cols*view.scale)/2;view.y=(H-S.rows*view.scale)/2;
   needRender=true;
 }
 
-
 function zoomAt(mx,my,f){
-  const ns=clamp(view.scale*f,1,80),k=ns/view.scale;
+  const ns=clamp(view.scale*f,0.1,80),k=ns/view.scale;
   view.x=mx-(mx-view.x)*k;view.y=my-(my-view.y)*k;
   view.scale=ns;needRender=true;
 }
@@ -1934,141 +2376,78 @@ function setAppMode(mode){
   S.appMode = valid.includes(mode) ? mode : 'simulate';
   document.body.classList.toggle('art-mode', S.appMode === 'art');
   document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === S.appMode));
-  if(S.appMode === 'art') renderArtCanvas();
+  document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.toggle('is-active', btn.dataset.mode === S.appMode));
+  if(S.appMode === 'art'){
+    Art.fitToWorld();
+    Art.render();
+    const sourceBtn=$('#artUseSourceBtn'); if(sourceBtn) sourceBtn.hidden = !srcImg;
+    Art.setDrawerOpen(false);
+  } else {
+    fitView();
+  }
   needRender = true;
 }
 
 document.querySelectorAll('.nav-btn').forEach(btn => {
   btn.addEventListener('click', () => setAppMode(btn.dataset.mode));
 });
-
-/* ═════════════════ UI BINDINGS ═════════════════ */
-function bindSeg(el,fn){
-  el.addEventListener('click',e=>{
-    const b=e.target.closest('button[data-v]');if(!b)return;
-    el.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x===b));
-    fn(b.dataset.v);
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => setAppMode(btn.dataset.mode));
+});
+Art.register();
+['#artPropX','#artPropY','#artPropW','#artPropH','#artPropRotation','#artPropOpacity'].forEach(selector => {
+  const el=document.querySelector(selector); if(!el) return;
+  el.addEventListener('input', () => {
+    const layer=Art.getSelected(); if(!layer) return;
+    const x=$('#artPropX'); const y=$('#artPropY'); const w=$('#artPropW'); const h=$('#artPropH'); const rot=$('#artPropRotation'); const op=$('#artPropOpacity');
+    Art.pushHistory(); layer.x = Number(x.value || 0); layer.y = Number(y.value || 0); layer.width = Math.max(40, Number(w.value || 40)); layer.height = Math.max(40, Number(h.value || 40)); layer.rotation = Number(rot.value || 0); layer.opacity = clamp(Number(op.value || 100) / 100, 0, 1); Art.syncLayerPanel(); Art.render();
   });
-}
-function updateSndStat(){$('#sndStat').textContent='engine: '+AudioFX.status();}
-
-bindSeg($('#bgSeg'),v=>{S.bg=v;needRender=true;});
-bindSeg($('#viewSeg'),v=>{S.view=v;needRender=true;
-  if(v==='original')toast('Comparison view — simulation untouched');});
-bindSeg($('#fillSeg'),v=>{
-  S.recFill=v;
-  $('#recHint').innerHTML=v==='memory'
-    ?'<b>MEMORY</b> (default): empty cells are recolonized by the <b>evolved image patches of their restored neighbors</b> — the image reforms as a memory of its journey. Surviving mutants keep their patches and flare as the wave passes. ORIGINAL = classic Gen-0 restore.'
-    :'<b>ORIGINAL</b> (classic): every cell eases back to its original image patch — the exact Generation 0 image returns.';
-  toast(v==='memory'?'Reconstruction will rebuild from evolved patches (MEMORY)'
-                    :'Reconstruction will restore the exact Gen-0 image (ORIGINAL)');
 });
-bindSeg($('#recSeg'),v=>{
-  S.recMode=v;
-  toast(v==='outside'?'Wave seeded by the skeleton, moving inward'
-     :v==='center'?'Wave sweeps from the center outward'
-     :v==='random'?'Cells restore in random order'
-     :'Cells restore row by row');
+window.addEventListener('keydown', e => {
+  if(S.appMode !== 'art') return;
+  const isMeta = e.metaKey || e.ctrlKey;
+  if((isMeta && e.key.toLowerCase() === 'z') && !e.shiftKey){ e.preventDefault(); Art.undo(); }
+  if((isMeta && e.key.toLowerCase() === 'z') && e.shiftKey){ e.preventDefault(); Art.redo(); }
+  if(e.key === 'Delete' || e.key === 'Backspace'){ const sel=Art.getSelected(); if(sel){ e.preventDefault(); Art.deleteSelected(); } }
+  if(e.key === 'Escape'){ Art.selectedId=null; Art.syncLayerPanel(); Art.render(); }
+  const layer=Art.getSelected(); if(!layer) return;
+  const step = e.shiftKey ? 12 : 4;
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){ e.preventDefault(); if(e.key==='ArrowLeft') layer.x -= step; if(e.key==='ArrowRight') layer.x += step; if(e.key==='ArrowUp') layer.y -= step; if(e.key==='ArrowDown') layer.y += step; Art.syncLayerPanel(); Art.render(); }
 });
 
-/* ── grid size slider: discrete presets, maximum 128 rows ── */
-const GRID_PRESETS=[10,12,20,25,32,64,128];
-function nearestPreset(v){
-  let best=GRID_PRESETS[0];
-  for(const p of GRID_PRESETS)if(Math.abs(p-v)<Math.abs(best-v))best=p;
-  return best;
+function bindSeg(el,fn){
+  el.addEventListener('click',e=>{ const button=e.target.closest('button[data-v]'); if(!button)return; el.querySelectorAll('button').forEach(item=>item.classList.toggle('active',item===button)); fn(button.dataset.v); });
 }
-$('#inGrid').addEventListener('input',e=>{
-  /* live preview of the preset the slider will snap to */
-  $('#gridOut').textContent=nearestPreset(+e.target.value);
-});
-$('#inGrid').addEventListener('change',e=>{
-  const v=nearestPreset(+e.target.value);
-  e.target.value=v;
-  /* rows change → columns follow the image aspect ratio, both via the
-     existing setDims() → rebuildAll() pipeline */
-  setDims(v,aspectCols(v));
-  toast(`Grid set to ${S.rows}×${S.cols} (${S.rows} rows)`);
-});
-
-function setDims(r,c){
-  r=clamp(Math.round(r)||16,8,192);c=clamp(Math.round(c)||16,8,192);
-  S.rows=r;S.cols=c;
-  rebuildAll(true);
-}
-$('#inStruct').addEventListener('input',e=>{
-  S.structPct=+e.target.value/100;
-  $('#structOut').textContent=e.target.value+'%';
-});
-$('#inStruct').addEventListener('change',()=>{
-  rebuildAll(true);
-  toast(`Structure @ ${(S.structPct*100)|0}% — mask rebuilt, reset to Gen 0`);
-});
-$('#inSens').addEventListener('input',e=>{
-  S.sens=+e.target.value/100;$('#sensOut').textContent=S.sens.toFixed(2)+'×';
-});
-$('#inSens').addEventListener('change',()=>{
-  rebuildAll(true);
-  toast(`Edge sensitivity ${S.sens.toFixed(2)}× — analysis rebuilt, reset to Gen 0`);
-});
-$('#inStrength').addEventListener('input',e=>{
-  S.survival=+e.target.value/100;$('#strOut').textContent=S.survival.toFixed(2);
-});
-$('#inGap').addEventListener('input',e=>{S.gap=+e.target.value;$('#gapOut').textContent=S.gap+' px';needRender=true;});
-$('#inGAlpha').addEventListener('input',e=>{S.gridAlpha=+e.target.value/100;$('#gAlphaOut').textContent=e.target.value+'%';needRender=true;});
-$('#inFade').addEventListener('input',e=>{S.fadeStep=+e.target.value/100;$('#fadeOut').textContent=S.fadeStep.toFixed(2)+'/g';});
-$('#inRecSpd').addEventListener('input',e=>{S.recMult=+e.target.value/100;$('#recSpdOut').textContent='×'+S.recMult.toFixed(1);});
-$('#inSpeed').addEventListener('input',e=>{S.speed=+e.target.value;$('#speedOut').textContent=S.speed+' gps';});
-$('#artFlow').addEventListener('input',e=>{S.artFlow=+e.target.value/100;$('#artFlowOut').textContent=e.target.value+'%';});
-$('#artDensity').addEventListener('input',e=>{S.artDensity=+e.target.value;$('#artDensityOut').textContent=e.target.value;FlowFieldArt.refresh();});
-$('#artTrail').addEventListener('input',e=>{S.artTrail=+e.target.value/100;$('#artTrailOut').textContent=e.target.value+'%';});
-$('#artSpeed').addEventListener('input',e=>{S.artSpeed=+e.target.value/100;$('#artSpeedOut').textContent=(+e.target.value/100).toFixed(1)+'×';});
-$('#artRegenerate').addEventListener('click',()=>{S.artSeed++;FlowFieldArt.regenerate();toast('Structural portrait regenerated');});
-[['dbgGrid'],['dbgAge'],['dbgOutline'],['dbgShimmer'],['dbgSmooth']].forEach(([id])=>
-  $('#'+id).addEventListener('change',()=>{
-    if(id==='dbgAge')_ageTint=$('#dbgAge').checked;
-    if(id==='dbgSmooth')S.smooth=$('#dbgSmooth').checked;
-    needRender=true;
-  }));
+function updateSndStat(){ $('#sndStat').textContent='engine: '+AudioFX.status(); }
+bindSeg($('#bgSeg'),value=>{S.bg=value;needRender=true;});
+bindSeg($('#viewSeg'),value=>{S.view=value;needRender=true;if(value==='original')toast('Comparison view — simulation untouched');});
+bindSeg($('#fillSeg'),value=>{ S.recFill=value; $('#recHint').innerHTML=value==='memory'?'<b>MEMORY</b> (default): empty cells are recolonized by the <b>evolved image patches of their restored neighbors</b> — the image reforms as a memory of its journey. Surviving mutants keep their patches and flare as the wave passes. ORIGINAL = classic Gen-0 restore.':'<b>ORIGINAL</b> (classic): every cell eases back to its original image patch — the exact Generation 0 image returns.'; toast(value==='memory'?'Reconstruction will rebuild from evolved patches (MEMORY)':'Reconstruction will restore the exact Gen-0 image (ORIGINAL)'); });
+bindSeg($('#recSeg'),value=>{ S.recMode=value; toast(value==='outside'?'Wave seeded by the skeleton, moving inward':value==='center'?'Wave sweeps from the center outward':value==='random'?'Cells restore in random order':'Cells restore row by row'); });
+const GRID_PRESETS=[16,32,64,96,128];
+function nearestPreset(value){ return GRID_PRESETS.reduce((best,preset)=>Math.abs(preset-value)<Math.abs(best-value)?preset:best,GRID_PRESETS[0]); }
+function setDims(rows,cols){ rows=clamp(Math.round(rows)||16,16,128); cols=clamp(Math.round(cols)||16,8,Math.min(512,Math.floor(262144/rows))); S.rows=rows; S.cols=cols; rebuildAll(true); }
+$('#inGrid').addEventListener('input',event=>{ $('#gridOut').textContent=nearestPreset(+event.target.value); });
+$('#inGrid').addEventListener('change',event=>{ const rows=nearestPreset(+event.target.value); event.target.value=rows; setDims(rows,aspectCols(rows)); toast(`Grid set to ${S.rows}×${S.cols} (${S.rows} rows)`); });
+$('#inStruct').addEventListener('input',event=>{ S.structPct=+event.target.value/100; $('#structOut').textContent=event.target.value+'%'; });
+$('#inStruct').addEventListener('change',()=>{ rebuildAll(true); toast(`Structure @ ${(S.structPct*100)|0}% — mask rebuilt, reset to Gen 0`); });
+$('#inSens').addEventListener('input',event=>{ S.sens=+event.target.value/100; $('#sensOut').textContent=S.sens.toFixed(2)+'×'; });
+$('#inSens').addEventListener('change',()=>{ rebuildAll(true); toast(`Edge sensitivity ${S.sens.toFixed(2)}× — analysis rebuilt, reset to Gen 0`); });
+$('#inStrength').addEventListener('input',event=>{ S.survival=+event.target.value/100; $('#strOut').textContent=S.survival.toFixed(2); });
+$('#inGap').addEventListener('input',event=>{ S.gap=+event.target.value; $('#gapOut').textContent=S.gap+' px'; needRender=true; });
+$('#inGAlpha').addEventListener('input',event=>{ S.gridAlpha=+event.target.value/100; $('#gAlphaOut').textContent=event.target.value+'%'; needRender=true; });
+$('#inFade').addEventListener('input',event=>{ S.fadeStep=+event.target.value/100; $('#fadeOut').textContent=S.fadeStep.toFixed(2)+'/g'; });
+$('#inRecSpd').addEventListener('input',event=>{ S.recMult=+event.target.value/100; $('#recSpdOut').textContent='×'+S.recMult.toFixed(1); });
+$('#inSpeed').addEventListener('input',event=>{ S.speed=+event.target.value; $('#speedOut').textContent=S.speed+' gps'; });
+[['dbgGrid'],['dbgAge'],['dbgOutline'],['dbgShimmer'],['dbgSmooth']].forEach(([id])=>$('#'+id).addEventListener('change',()=>{ if(id==='dbgAge')_ageTint=$('#dbgAge').checked; if(id==='dbgSmooth')S.smooth=$('#dbgSmooth').checked; if(id==='dbgShimmer')S.shimmer=$('#dbgShimmer').checked; needRender=true; }));
 $('#dbgOn').addEventListener('change',()=>{needRender=true;inspectorUpdate();});
-
-/* ── audio bindings ── */
-$('#sndOn').addEventListener('change',e=>{
-  const ok=AudioFX.setEnabled(e.target.checked);
-  if(e.target.checked&&!ok){e.target.checked=false;toast('Web Audio unavailable in this browser — continuing silently');}
-  else if(e.target.checked){AudioFX.test();toast('Sound on — you should hear a test chime');}
-  updateSndStat();
-});
-$('#sndTest').addEventListener('click',()=>{
-  const box=$('#sndOn');
-  if(!box.checked){box.checked=true;const ok=AudioFX.setEnabled(true);if(!ok){box.checked=false;toast('Web Audio unavailable');updateSndStat();return;}}
-  AudioFX.test();
-  updateSndStat();
-});
-$('#sndVol').addEventListener('input',e=>{
-  $('#sndVolOut').textContent=e.target.value+'%';
-  AudioFX.setVol(+e.target.value/100);
-});
-$('#sndBirth').addEventListener('change',e=>AudioFX.setOpt('births',e.target.checked));
-$('#sndDeath').addEventListener('change',e=>AudioFX.setOpt('deaths',e.target.checked));
-$('#sndRec').addEventListener('change',e=>AudioFX.setOpt('recon',e.target.checked));
-$('#sndDrone').addEventListener('change',e=>AudioFX.setOpt('drone',e.target.checked));
-$('#sndDroneVol').addEventListener('input',e=>{
-  $('#sndDroneVolOut').textContent=e.target.value+'%';
-  AudioFX.setDroneVol(+e.target.value/100);
-});
-
-window.addEventListener('keydown',e=>{
-  const tag=e.target.tagName;
-  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
-  if(e.code==='Space'){e.preventDefault();setPlaying(!S.playing);}
-  else if(e.key==='ArrowRight'){setPlaying(false);pushNext();}
-  else if(e.key==='r'||e.key==='R')resetToGen0(true);
-  else if(e.key==='y'||e.key==='Y')replay();
-  else if(e.key==='c'||e.key==='C')manualReconstruct();
-  else if(e.key==='f'||e.key==='F')fitView();
-  else if(e.key==='Escape'){pinned=null;inspectorUpdate();needRender=true;}
-});
+$('#sndOn').addEventListener('change',event=>{ const ok=AudioFX.setEnabled(event.target.checked); if(event.target.checked&&!ok){event.target.checked=false;toast('Web Audio unavailable in this browser — continuing silently');} else if(event.target.checked){AudioFX.test();toast('Sound on — you should hear a test chime');} updateSndStat(); });
+$('#sndTest').addEventListener('click',()=>{const toggle=$('#sndOn');if(!toggle.checked){toggle.checked=true;const ok=AudioFX.setEnabled(true);if(!ok){toggle.checked=false;toast('Web Audio unavailable');updateSndStat();return;}}AudioFX.test();updateSndStat();});
+$('#sndVol').addEventListener('input',event=>{ $('#sndVolOut').textContent=event.target.value+'%'; AudioFX.setVol(+event.target.value/100); });
+$('#sndBirth').addEventListener('change',event=>AudioFX.setOpt('births',event.target.checked));
+$('#sndDeath').addEventListener('change',event=>AudioFX.setOpt('deaths',event.target.checked));
+$('#sndRec').addEventListener('change',event=>AudioFX.setOpt('recon',event.target.checked));
+$('#sndDrone').addEventListener('change',event=>AudioFX.setOpt('drone',event.target.checked));
+$('#sndDroneVol').addEventListener('input',event=>{ $('#sndDroneVolOut').textContent=event.target.value+'%'; AudioFX.setDroneVol(+event.target.value/100); });
 
 /* ═════════════════ FILE INTAKE ═════════════════ */
 $('#btnBrowse').addEventListener('click',()=>$('#fileInput').click());
@@ -2093,15 +2472,6 @@ function makeSampleImage(){
   g.fillStyle=sky;g.fillRect(0,0,520,280);
   g.fillStyle='#ffe9a3';g.beginPath();g.arc(355,195,46,0,7);g.fill();
   g.fillStyle='#fff7dd';g.beginPath();g.arc(355,195,34,0,7);g.fill();
-  g.fillStyle='rgba(255,255,255,0.16)';
-  [[90,70,70,14],[190,110,90,12],[420,60,60,11],[300,40,80,10]].forEach(([x,y,rx,ry])=>{
-    g.beginPath();g.ellipse(x,y,rx,ry,0,0,7);g.fill();});
-  g.fillStyle='#6d3a7d';g.beginPath();g.moveTo(0,280);g.lineTo(70,170);g.lineTo(160,280);g.closePath();g.fill();
-  g.fillStyle='#472a63';g.beginPath();g.moveTo(90,280);g.lineTo(230,130);g.lineTo(380,280);g.closePath();g.fill();
-  g.fillStyle='#2c1b47';g.beginPath();g.moveTo(280,280);g.lineTo(430,180);g.lineTo(520,280);g.closePath();g.fill();
-  const sea=g.createLinearGradient(0,280,0,390);
-  sea.addColorStop(0,'#3b2160');sea.addColorStop(1,'#1d1440');
-  g.fillStyle=sea;g.fillRect(0,280,520,110);
   g.fillStyle='rgba(255,207,122,0.35)';
   for(let i=0;i<7;i++){const wd=90-i*10;g.fillRect(355-wd/2,290+i*14,wd,5);}
   g.strokeStyle='rgba(30,20,50,0.85)';g.lineWidth=2;
@@ -2180,7 +2550,9 @@ const VideoRecorder=(()=>{
     if(S.view==='gen0')painter(g,cs,ox,oy,W,H,gen0Snap,false);
     else painter(g,cs,ox,oy,W,H,cur,true);
     if($('#dbgGrid').checked&&cs>=4){
-      g.strokeStyle=S.bg==='white'?`rgba(10,14,22,${S.gridAlpha})`:`rgba(190,205,235,${S.gridAlpha})`;
+      g.strokeStyle=S.bg==='white'
+        ?`rgba(10,14,22,${S.gridAlpha})`
+        :`rgba(190,205,235,${S.gridAlpha})`;
       g.lineWidth=1;g.beginPath();
       for(let c=0;c<=C;c++){const x=Math.round(ox+c*cs)+.5;g.moveTo(x,oy);g.lineTo(x,oy+R*cs);}
       for(let r=0;r<=R;r++){const y=Math.round(oy+r*cs)+.5;g.moveTo(ox,y);g.lineTo(ox+C*cs,y);}
@@ -2190,7 +2562,7 @@ const VideoRecorder=(()=>{
       g.strokeStyle='rgba(255,180,84,.55)';g.lineWidth=Math.max(1,cs*0.08);
       const inset=Math.max(.6,cs*.09);
       for(let r=0;r<R;r++)for(let c=0;c<C;c++)
-        if(lock[r*C+c])g.strokeRect(ox+c*cs+inset,oy+r*cs+inset,cs-inset*2,cs-inset*2);
+        if(lock[r*S.cols+c])g.strokeRect(ox+c*cs+inset,oy+r*cs+inset,cs-inset*2,cs-inset*2);
     }
     if(bloomCount>0&&S.view==='sim'){
       for(let r=0;r<R;r++)for(let c=0;c<C;c++){
@@ -2380,7 +2752,6 @@ function frame(t){
   bloomDecay(dt);
   const shouldRender=needRender||S.playing||phase==='reconstructing'||bloomCount>0;
   if(shouldRender){render();needRender=false;}
-  if(S.appMode==='art'){FlowFieldArt.tick(dt);}
   /* keep the offscreen recording canvas in sync with the current state,
      frame by frame (reconstruction animation included) */
   if(VideoRecorder.isActive()&&shouldRender)VideoRecorder.renderFrame();
