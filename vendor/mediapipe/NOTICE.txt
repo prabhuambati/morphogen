@@ -1,0 +1,9 @@
+MediaPipe Tasks Vision JavaScript runtime
+Version: 1.2.3
+Source: https://www.npmjs.com/package/@mediapipe/tasks-vision
+License: Apache-2.0 (see LICENSE.txt)
+
+The face landmark model used by DRAW is bundled at
+../../models/face_landmarker.task. It is the MediaPipe Face Landmarker model
+distributed by Google at:
+https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task

@@ -30,7 +30,7 @@ There is no application build step or framework runtime. The application is impl
 
 3. Open `http://localhost:8000` and use **Upload PNG / JPG / WEBP**, or start with the generated sample.
 
-Opening the file directly may work for basic use, but a local HTTP server is the more reliable way to run browser APIs. Audio requires a user gesture because of browser autoplay policies. Video recording depends on the browser's `MediaRecorder` and canvas `captureStream()` support.
+Opening the file directly may work for basic use, but a local HTTP server is required for DRAW's bundled face-landmark runtime and model. The MediaPipe runtime and model are served from `vendor/mediapipe/` and `models/face_landmarker.task`; DRAW does not fetch model code or image data from a remote service. DRAW's **PHOTO TRACE** style uses the uploaded image only as a local guide to generate animated, color-matched strokes; it does not composite the source image into the drawing or export. Audio requires a user gesture because of browser autoplay policies. Video recording depends on the browser's `MediaRecorder` and canvas `captureStream()` support.
 
 `package.json` lists Playwright as a dependency, but does not define a build, start, or real test command. Its current `npm test` script is a placeholder that exits with an error. Do not describe the project as having an automated test suite unless one is added.
 

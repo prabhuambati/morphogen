@@ -18,6 +18,7 @@
   },
   "homepage": "https://github.com/prabhuambati/morphogen#readme",
   "dependencies": {
+    "@mediapipe/tasks-vision": "1.2.3",
     "playwright": "^1.63.0"
   }
 }
