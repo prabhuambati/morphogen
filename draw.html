@@ -88,7 +88,7 @@ header{height:54px;border-bottom:2px solid #000;display:flex;align-items:center;
   </section>
   <section class="card">
    <h2>DRAWING MODE</h2>
-   <div class="field"><label for="drawStyle">Drawing method</label><select id="drawStyle"><option value="photo-trace" selected>PHOTO TRACE · COLOR MATCH</option><option value="sketch">SKETCH</option><option value="stipple">STIPPLE</option><option value="one-line">ONE LINE</option></select><div class="tiny">PHOTO TRACE is selected by default. It draws color-matched strokes from the photo; the photo itself stays hidden.</div></div>
+   <div class="field"><label for="drawStyle">Drawing method</label><select id="drawStyle"><option value="photo-trace" selected>PHOTO TRACE · COLOR MATCH</option><option value="sketch">SKETCH</option><option value="stipple">STIPPLE</option><option value="one-line">ONE LINE</option></select><div class="tiny">PHOTO TRACE rebuilds the full image in color-matched rows. Higher detail prints finer rows and takes longer.</div></div>
    <div class="field"><label for="smooth">Smoothing <output id="smoothOut">2</output></label><input id="smooth" type="range" min="0" max="6" value="2"></div>
    <div class="field"><label for="detail">Detail <output id="detailOut">40%</output></label><input id="detail" type="range" min="0" max="100" value="40"></div>
    <div class="field"><label for="minLength">Min length <output id="minLengthOut">14 px</output></label><input id="minLength" type="range" min="2" max="60" value="14"></div>
@@ -261,8 +261,13 @@ function drawPaperTexture(){
  paperCtx.putImageData(image,0,0);renderCamera()
 }
 function drawBackground(){
+  for(const c of [colorCanvas,ghostCanvas,inkCanvas])
+  if(sourceImage&&(c.width!==workingW||c.height!==workingH)){c.width=workingW;c.height=workingH}
+ 
  inkCtx.setTransform(1,0,0,1,0,0);inkCtx.clearRect(0,0,inkCanvas.width,inkCanvas.height);
- ghostCtx.clearRect(0,0,ghostCanvas.width,ghostCanvas.height);penCtx.clearRect(0,0,penCanvas.width,penCanvas.height);
+ ghostCtx.clearRect(0,0,ghostCanvas.width,ghostCanvas.height);
+ colorCtx.clearRect(0,0,colorCanvas.width,colorCanvas.height);
+ penCtx.clearRect(0,0,penCanvas.width,penCanvas.height);
  if(!sourceImage)return;
  camera={cx:workingW/2,cy:workingH/2,zoom:1};cameraManual=false;
  renderGhost();updateCameraRect();renderPen();renderCamera();
@@ -465,15 +470,14 @@ function makeFaceLandmarkStrokes(points,w,h){
  return output
 }
 async function makePhotoTraceStrokes(outputW,outputH,maskW,maskH){
- const ctx=sourceOriginalCanvas.getContext('2d',{willReadFrequently:true}),pixels=ctx.getImageData(0,0,outputW,outputH).data;
- const useMask=$('#useSubjectMask').checked,mask=useMask?scaleMask(subjectMask,maskW,maskH,outputW,outputH):new Uint8Array(outputW*outputH);
- if(!useMask)mask.fill(1);
- const sampleScale=Math.min(1,220/Math.max(outputW,outputH)),sampleW=Math.max(1,Math.round(outputW*sampleScale)),sampleH=Math.max(1,Math.round(outputH*sampleScale)),sampleCanvas=document.createElement('canvas');
- sampleCanvas.width=sampleW;sampleCanvas.height=sampleH;sampleCanvas.getContext('2d').drawImage(sourceOriginalCanvas,0,0,sampleW,sampleH);
- const sample=sampleCanvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,sampleW,sampleH).data,sampleMask=scaleMask(mask,outputW,outputH,sampleW,sampleH),valid=[];
- for(let i=0;i<sampleMask.length;i++)if(sampleMask[i])valid.push(i);
- if(!valid.length)return[];
- const paletteSize=Math.min(+$('#paintColors').value,valid.length),centers=new Float32Array(paletteSize*3);
+ const traceScale=Math.min(1,1200/Math.max(outputW,outputH)),traceW=Math.max(1,Math.round(outputW*traceScale)),traceH=Math.max(1,Math.round(outputH*traceScale)),traceCanvas=document.createElement('canvas');
+ traceCanvas.width=traceW;traceCanvas.height=traceH;
+ const traceCtx=traceCanvas.getContext('2d',{willReadFrequently:true});
+ traceCtx.fillStyle='#f5f0df';traceCtx.fillRect(0,0,traceW,traceH);traceCtx.drawImage(sourceOriginalCanvas,0,0,traceW,traceH);
+ const pixels=traceCtx.getImageData(0,0,traceW,traceH).data,sampleScale=Math.min(1,220/Math.max(traceW,traceH)),sampleW=Math.max(1,Math.round(traceW*sampleScale)),sampleH=Math.max(1,Math.round(traceH*sampleScale)),sampleCanvas=document.createElement('canvas');
+ sampleCanvas.width=sampleW;sampleCanvas.height=sampleH;sampleCanvas.getContext('2d').drawImage(traceCanvas,0,0,sampleW,sampleH);
+ const sample=sampleCanvas.getContext('2d',{willReadFrequently:true}).getImageData(0,0,sampleW,sampleH).data,valid=Array.from({length:sampleW*sampleH},(_,i)=>i);
+ const paletteSize=Math.min(128,valid.length),centers=new Float32Array(paletteSize*3);
  for(let c=0;c<paletteSize;c++){const p=valid[Math.floor((c+.5)*valid.length/paletteSize)]*4;centers[c*3]=sample[p];centers[c*3+1]=sample[p+1];centers[c*3+2]=sample[p+2]}
  const assignments=new Uint8Array(sampleW*sampleH);
  for(let pass=0;pass<3;pass++){
@@ -488,23 +492,18 @@ async function makePhotoTraceStrokes(outputW,outputH,maskW,maskH){
  }
  const palette=Array.from({length:paletteSize},(_,c)=>'#'+[0,1,2].map(q=>Math.round(centers[c*3+q]).toString(16).padStart(2,'0')).join(''));
  const nearestColor=(p)=>{const r=pixels[p],g=pixels[p+1],b=pixels[p+2];let best=0,bestDistance=Infinity;for(let c=0;c<paletteSize;c++){const dr=r-centers[c*3],dg=g-centers[c*3+1],db=b-centers[c*3+2],distance=dr*dr+dg*dg+db*db;if(distance<bestDistance){bestDistance=distance;best=c}}return best};
- const rowStep=clamp(Math.round(10-$('#detail').value*.05),5,10),pointStep=clamp(Math.round(rowStep*.9),4,9),result=[];
- for(let y=Math.floor(rowStep/2);y<outputH;y+=rowStep){
-  let pts=[],colors=[],activeRoi=-2;
-  const flush=()=>{
-   if(pts.length<8){pts=[];colors=[];return}
-   const path=new Float32Array(pts),length=pathLength(path);
-   if(length>=pointStep*3)result.push({pts:path,colorIndices:new Uint8Array(colors),palette,length,mean:1,importance:length,baseImportance:length,top:y,shade:false,face:activeRoi===0,photoTrace:true,...(activeRoi>=0?{roiId:activeRoi}:{}),seed:(seedBase+y*2654435761+result.length)>>>0});
-   pts=[];colors=[]
-  };
-  for(let x=0;x<outputW;x+=pointStep){
-   const at=y*outputW+x,inside=mask[at]!==0,analysisX=Math.min(maskW-1,Math.floor(x*maskW/outputW)),analysisY=Math.min(maskH-1,Math.floor(y*maskH/outputH)),roi=inside&&faceBox&&analysisX>=faceBox.x&&analysisX<=faceBox.x+faceBox.w&&analysisY>=faceBox.y&&analysisY<=faceBox.y+faceBox.h?0:inside?-1:-2;
-   if(roi!==activeRoi){flush();activeRoi=roi}
-   if(!inside)continue;
-   pts.push(x,y);colors.push(nearestColor(at*4))
+ const detail=+$('#detail').value,rowStep=clamp(Math.round(3-detail*.02),1,3),pointStep=clamp(Math.round(rowStep*.75),1,3),result=[];
+ for(let y=0;y<traceH;y+=rowStep){
+  const pts=[],colors=[],reverse=(Math.floor(y/rowStep)&1)!==0,count=Math.ceil((traceW-1)/pointStep)+1;
+  for(let i=0;i<count;i++){
+   const offset=Math.min(traceW-1,i*pointStep),x=reverse?traceW-1-offset:offset,at=(y*traceW+x)*4;
+   pts.push(x*outputW/traceW,y*outputH/traceH);colors.push(nearestColor(at))
   }
-  flush();
-  if((y&127)===0){setAnalysisProgress(20+y/outputH*70,'Tracing source into color strokes');await yieldFrame()}
+  const path=new Float32Array(pts),length=pathLength(path);
+if(path.length>=4)result.push({pts:path,colorIndices:new Uint8Array(colors),palette,length,mean:1,importance:length,baseImportance:length,top:y*outputH/traceH,shade:false,photoTrace:true,
+  cellW:pointStep*outputW/traceW,rowH:rowStep*outputH/traceH,
+  seed:(seedBase+y*2654435761+result.length)>>>0});
+    if((y&31)===0){setAnalysisProgress(20+y/traceH*70,'Tracing full image in color rows');await yieldFrame()}
  }
  return result
 }
@@ -586,6 +585,10 @@ async function traceDetailRoi(region,coarseThreshold,outputW,outputH){
  }finally{gradient=previousGradient}
 }
 function buildCameraSequence(){
+  if(strokes.length&&strokes[0].photoTrace){
+  cameraShots=[{kind:'wide',roi:null,end:strokes.length},{kind:'final',roi:null,end:strokes.length}];
+  cameraShotIndex=0;cameraTransition=null;cameraHoldUntil=0;cameraHoldStarted=false;return
+ }
  const all=strokes.slice(),hatches=all.filter(s=>s.shade),contours=all.filter(s=>!s.shade),silhouette=contours.find(s=>s.silhouette),outside=contours.filter(s=>s.roiId===undefined&&s!==silhouette);
  const compare=(a,b)=>$('#strokeOrder').value==='top'?a.top-b.top||b.importance-a.importance:b.importance-a.importance;
  outside.sort(compare);const wideCount=Math.max(0,Math.ceil(outside.length*.25)),wide=outside.slice(0,wideCount),body=outside.slice(wideCount);
@@ -1135,8 +1138,15 @@ function cameraDirectorTick(now){
 }
 function randomUnit(seed,index,salt){let x=(seed^Math.imul(index+1,0x9e3779b1)^salt)|0;x=Math.imul(x^x>>>16,0x7feb352d);x=Math.imul(x^x>>>15,0x846ca68b);return ((x^x>>>16)>>>0)/4294967296}
 function drawStrokeSegment(s,a,b){
- const x1=s.pts[a*2],y1=s.pts[a*2+1],x2=s.pts[b*2],y2=s.pts[b*2+1];
- const color=s.colorIndices&&s.palette?s.palette[s.colorIndices[b]]:$('#inkColor').value,penStyle=style,t=s.pts.length>2?b/(s.pts.length/2-1):.5,pressure=.85+.15*clamp(Math.min(t/.15,(1-t)/.15),0,1),aspect=cameraCanvas.width/Math.max(1,cameraCanvas.height),wideW=Math.max(workingW,workingH*aspect),baseScale=cameraCanvas.width/Math.max(1,wideW),unitScale=dpr/Math.max(.001,baseScale);
+
+const x1=s.pts[a*2],y1=s.pts[a*2+1],x2=s.pts[b*2],y2=s.pts[b*2+1];
+const cw=s.cellW||3, rh=s.rowH||3;
+
+ if(s.photoTrace){
+  colorCtx.fillStyle=s.palette[s.colorIndices[b]];
+  colorCtx.fillRect(Math.min(x1,x2)-cw*.5,y1-1,Math.abs(x2-x1)+cw,rh+1.5);
+ }
+  const color=s.colorIndices&&s.palette?s.palette[s.colorIndices[b]]:$('#inkColor').value,penStyle=style,t=s.pts.length>2?b/(s.pts.length/2-1):.5,pressure=.85+.15*clamp(Math.min(t/.15,(1-t)/.15),0,1),aspect=cameraCanvas.width/Math.max(1,cameraCanvas.height),wideW=Math.max(workingW,workingH*aspect),baseScale=cameraCanvas.width/Math.max(1,wideW),unitScale=dpr/Math.max(.001,baseScale);
  let width=s.oneLine?(.8+randomUnit(s.seed,a,9)*.4)*unitScale:+$('#lineWidth').value*unitScale*pressure*(s.photoTrace?1.2:s.landmark?(s.feature.includes('outline')?1:1.55):s.face||s.silhouette?1.3:1)*(penStyle==='marker'?1.3:1);
  if(s.shade)width=.8*unitScale;
  inkCtx.save();inkCtx.strokeStyle=color;inkCtx.lineCap='round';inkCtx.lineJoin='round';inkCtx.lineWidth=width;
@@ -1177,7 +1187,26 @@ function drawFrame(now){
  }
  renderCamera();renderPen();updateStats();if(recording())drawRecordingFrame();raf=requestAnimationFrame(drawFrame)
 }
+function completeTrace(){
+  toast('completeTrace: '+strokes.length+' rows, canvas '+colorCanvas.width+'×'+colorCanvas.height+', working '+workingW+'×'+workingH);
+  const cw=s.cellW||3, rh=s.rowH||3;
+ for(const s of strokes){
+  if(!s.photoTrace)continue;
+  const n=s.colorIndices.length;let start=0;
+  for(let i=1;i<=n;i++){
+   if(i===n||s.colorIndices[i]!==s.colorIndices[start]){
+    const xa=s.pts[start*2],xb=s.pts[(i-1)*2];
+    colorCtx.fillStyle=s.palette[s.colorIndices[start]];
+    colorCtx.fillRect(Math.min(xa,xb)-cw*.5,s.pts[1]-1,Math.abs(xb-xa)+cw,rh+1.5);
+    start=i;
+   }
+  }
+ }
+ renderCamera();
+}
+
 function finishDrawing(){
+  if(strokes.length&&strokes[0].photoTrace)completeTrace();
  running=false; $('#startBtn').textContent='⟳ REDRAW';$('#paintBtn').disabled=$('#drawStyle').value==='photo-trace';setStatus('✓ DRAWING COMPLETE');drawnPoints=totalPoints;drawnStrokeCount=strokeCount;updateStats();
  finishAnim={x:workingW-8,y:workingH-8,start:performance.now(),fromX:penX,fromY:penY};
  $('#convertGrid').disabled=false;if($('#autoPaint').checked&&$('#drawStyle').value!=='photo-trace'){finishAnim=null;startPaint()}else animateFinish()
