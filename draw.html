@@ -225,7 +225,7 @@ const paletteSets={
 let palette=paletteSets.RANGOLI.slice(), sourceImage=null,sourceCanvas=null,sourceOriginalCanvas=null,sourceW=0,sourceH=0,workingW=0,workingH=0;
 let gray=null,blurred=null,gradient=null,strokes=[],strokeCount=0,totalPoints=0,drawnPoints=0,drawnStrokeCount=0;
 let running=false,analysisBusy=false,raf=0,currentStroke=0,currentPoint=0,penX=0,penY=0,lastFrame=0,strokePauseUntil=0,traveling=false,travelX=0,travelY=0;
-let customCursor=null,cursorTilt=0,lastCurX=0;
+let customCursor=null,cursorTilt=0,lastCurX=0,paintPlan=null;
 let subjectMask=null,alphaMask=null,alphaCutout=false,maskDebugCanvas=null,faceBox=null,faceLandmarkPoints=null,faceLandmarker=null,faceLandmarkerPromise=null,faceModelStatus='FACE LANDMARKS READY',orientation=null,toneMap=null,paintPalette=[],paintRegions=[],paintIndexMap=null,painting=false,paintComplete=false,paintRAF=0,stippleDots=null,slowImportance=Infinity;
 let viewScale=1,viewOffsetX=0,viewOffsetY=0,dpr=1,style='clean',strokeStartTime=0,elapsedDraw=0,lastStatTime=0;
 let seedBase=0x5eed1234,grid=null,growthTimer=0,growthRunning=false,recorder=null,recordChunks=[],recordCanvas=null,recordCtx=null,recordStream=null,recordFrame=0,recordMime='';
@@ -601,6 +601,15 @@ async function traceDetailRoi(region,coarseThreshold,outputW,outputH){
  }finally{gradient=previousGradient}
 }
 function buildCameraSequence(){
+ if(strokes.length&&strokes[0].paint&&paintPlan){
+  cameraShots=[
+   {kind:'wide',roi:null,end:paintPlan.mainEnd},
+   {kind:'roi',roi:paintPlan.roi,end:paintPlan.roiEnd,hold:300},
+   {kind:'wide',roi:null,end:strokes.length},
+   {kind:'final',roi:null,end:strokes.length}
+  ];
+  cameraShotIndex=0;cameraTransition=null;cameraHoldUntil=0;cameraHoldStarted=false;return
+ }
  if(strokes.length&&(strokes[0].photoTrace||strokes[0].sketch||strokes[0].paint)){
   cameraShots=[{kind:'wide',roi:null,end:strokes.length},{kind:'final',roi:null,end:strokes.length}];
   cameraShotIndex=0;cameraTransition=null;cameraHoldUntil=0;cameraHoldStarted=false;return
@@ -791,59 +800,52 @@ async function orderPaintLayer(list,mode,W,H){
  }
  return out
 }
-async function makePaintStrokes(outputW,outputH,w,h,pixels){
- const n=w*h,sx=outputW/w,sy=outputH/h,detail=+$('#detail').value,mode=$('#paintColorMode').value,brushScale=+$('#brushSize').value/100,order=$('#photoOrder').value,rnd=(i,s)=>randomUnit(seedBase,i,s);
- const lum0=new Float32Array(n);
- for(let i=0;i<n;i++)lum0[i]=.2126*pixels[i*4]+.7152*pixels[i*4+1]+.0722*pixels[i*4+2];
- const lb=boxBlur(lum0,w,h,1),m=new Float32Array(n);
- for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;m[i]=Math.hypot(lb[i+1]-lb[i-1],lb[i+w]-lb[i-w])}
- const sharp=boxBlur(boxBlur(m,w,h,10),w,h,10),ss=Float32Array.from(sharp).sort(),sThr=Math.max(.5,ss[Math.floor(n*.5)]),focus=new Float32Array(n);
- for(let i=0;i<n;i++)focus[i]=clamp((sharp[i]-sThr*.3)/(sThr*.7),0,1);
- if(faceBox){const x0=Math.max(0,faceBox.x|0),y0=Math.max(0,faceBox.y|0),x1=Math.min(w,Math.ceil(faceBox.x+faceBox.w)),y1=Math.min(h,Math.ceil(faceBox.y+faceBox.h));for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)focus[y*w+x]=1}
- await yieldFrame();
+function makePlanes(rgba,n,mode,focus,tone){
  const SR=new Float32Array(n),SG=new Float32Array(n),SB=new Float32Array(n);
- if(mode==='color'){for(let i=0;i<n;i++){SR[i]=pixels[i*4];SG[i]=pixels[i*4+1];SB[i]=pixels[i*4+2]}}
- else{
-  const srt=Float32Array.from(lum0).sort(),p2=srt[Math.floor(n*.02)],p98=srt[Math.floor(n*.98)],span=Math.max(20,p98-p2),gamma=100/+$('#toneContrast').value,dk=mode==='gray'?[22,22,24]:[52,32,18],lt=[245,240,223];
-  for(let i=0;i<n;i++){
-   const d=Math.pow(clamp((p98-lum0[i])/span,0,1),gamma)*(.35+.65*focus[i]);
-   SR[i]=lt[0]+(dk[0]-lt[0])*d;SG[i]=lt[1]+(dk[1]-lt[1])*d;SB[i]=lt[2]+(dk[2]-lt[2])*d
+ for(let i=0;i<n;i++){
+  const r=rgba[i*4],g=rgba[i*4+1],b=rgba[i*4+2],white=r>=238&&g>=238&&b>=238&&Math.max(r,g,b)-Math.min(r,g,b)<14;
+  if(mode==='color'){
+   if(white){SR[i]=245;SG[i]=240;SB[i]=223}else{SR[i]=r;SG[i]=g;SB[i]=b}
+  }else{
+   const l=.2126*r+.7152*g+.0722*b,d=white?0:Math.pow(clamp((tone.p98-l)/tone.span,0,1),tone.gamma)*(.35+.65*focus[i]);
+   SR[i]=245+(tone.dk[0]-245)*d;SG[i]=240+(tone.dk[1]-240)*d;SB[i]=223+(tone.dk[2]-223)*d
   }
  }
- const baseT=34-detail*.22,radii=[11,6,3.4,2].map(r=>Math.max(1,r*brushScale)),mult=[1.15,1,.85,.7],maxSteps=[14,14,12,9],capBase=[1500,3500,5000,6000],capScale=.5+detail/100;
- const pc=document.createElement('canvas');pc.width=w;pc.height=h;
- const pctx=pc.getContext('2d',{willReadFrequently:true});
- pctx.fillStyle='#f5f0df';pctx.fillRect(0,0,w,h);pctx.lineCap='round';pctx.lineJoin='round';
- const err=new Float32Array(n),lumRef=new Float32Array(n),ordered=[];let serial=0;
- for(let li=0;li<4;li++){
+ return{SR,SG,SB}
+}
+async function paintPass(o){
+ const {W,H,SR,SG,SB,pctx,radii,baseT,caps,mode,order,tScale,gate,label,p0}=o,n=W*H,rnd=(i,s)=>randomUnit(seedBase,i,s);
+ const mult=[1.15,1,.85,.7],maxSteps=[14,14,12,9],err=new Float32Array(n),lumRef=new Float32Array(n),result=[];let serial=0;
+ pctx.lineCap='round';pctx.lineJoin='round';
+ for(let li=0;li<radii.length;li++){
   const R=radii[li],br=Math.max(1,Math.round(R*.5));
-  const rR=boxBlur(boxBlur(SR,w,h,br),w,h,br),rG=boxBlur(boxBlur(SG,w,h,br),w,h,br),rB=boxBlur(boxBlur(SB,w,h,br),w,h,br);
-  const cd=pctx.getImageData(0,0,w,h).data;
+  const rR=boxBlur(boxBlur(SR,W,H,br),W,H,br),rG=boxBlur(boxBlur(SG,W,H,br),W,H,br),rB=boxBlur(boxBlur(SB,W,H,br),W,H,br);
+  const cd=pctx.getImageData(0,0,W,H).data;
   for(let i=0;i<n;i++){const dr=rR[i]-cd[i*4],dg=rG[i]-cd[i*4+1],db=rB[i]-cd[i*4+2];err[i]=Math.sqrt(dr*dr+dg*dg+db*db);lumRef[i]=.2126*rR[i]+.7152*rG[i]+.0722*rB[i]}
   await yieldFrame();
-  const step=Math.max(1.5,R*.8),grid=Math.max(2,Math.round(R*.9)),cap=Math.round(capBase[li]*capScale),cand=[];
-  for(let cy=0;cy<h;cy+=grid)for(let cx=0;cx<w;cx+=grid){
-   const x1=Math.min(w,cx+grid),y1=Math.min(h,cy+grid);let sum=0,cnt=0,best=-1,bi=0;
-   for(let y=cy;y<y1;y++)for(let x=cx;x<x1;x++){const e=err[y*w+x];sum+=e;cnt++;if(e>best){best=e;bi=y*w+x}}
-   const mean=sum/cnt,bx=bi%w,by=(bi/w)|0,inFace=isInFace(bx,by);
-   if(li>=2&&!inFace&&focus[bi]<(li===2?.25:.55))continue;
-   if(mean>baseT*mult[li]*(inFace?.55:1))cand.push({x:bx,y:by,e:mean})
+  const step=Math.max(1.2,R*.8),grid=Math.max(2,Math.round(R*.9)),cand=[];
+  for(let cy=0;cy<H;cy+=grid)for(let cx=0;cx<W;cx+=grid){
+   const x1=Math.min(W,cx+grid),y1=Math.min(H,cy+grid);let sum=0,cnt=0,best=-1,bi=0;
+   for(let y=cy;y<y1;y++)for(let x=cx;x<x1;x++){const e=err[y*W+x];sum+=e;cnt++;if(e>best){best=e;bi=y*W+x}}
+   const mean=sum/cnt,bx=bi%W,by=(bi/W)|0;
+   if(!gate(li,bi,bx,by))continue;
+   if(mean>baseT*mult[li]*tScale(bx,by))cand.push({x:bx,y:by,e:mean})
   }
-  cand.sort((a,b)=>b.e-a.e);if(cand.length>cap)cand.length=cap;
+  cand.sort((a,b)=>b.e-a.e);if(cand.length>caps[li])cand.length=caps[li];
   await yieldFrame();
   const layer=[],minSteps=li<2?3:2,fc=.8;
   for(const c of cand){
-   const i0=c.y*w+c.x;let cr=rR[i0],cg=rG[i0],cb=rB[i0];
+   const i0=c.y*W+c.x;let cr=rR[i0],cg=rG[i0],cb=rB[i0];
    if(mode==='color'){const j=(rnd(serial++,3)-.5)*10;cr=clamp(cr+j,0,255);cg=clamp(cg+j,0,255);cb=clamp(cb+j,0,255)}
    const pts=[c.x,c.y];let x=c.x,y=c.y,ldx=0,ldy=0;
    for(let s=1;s<=maxSteps[li];s++){
-    const xi=x|0,yi=y|0,ii=yi*w+xi;
+    const xi=x|0,yi=y|0,ii=yi*W+xi;
     if(s>minSteps){
      const dRef=Math.hypot(rR[ii]-cd[ii*4],rG[ii]-cd[ii*4+1],rB[ii]-cd[ii*4+2]),dStroke=Math.hypot(rR[ii]-cr,rG[ii]-cg,rB[ii]-cb);
      if(dRef<dStroke)break
     }
-    if(xi<1||yi<1||xi>=w-1||yi>=h-1)break;
-    const gx=lumRef[ii+1]-lumRef[ii-1],gy=lumRef[ii+w]-lumRef[ii-w],gm=Math.hypot(gx,gy);
+    if(xi<1||yi<1||xi>=W-1||yi>=H-1)break;
+    const gx=lumRef[ii+1]-lumRef[ii-1],gy=lumRef[ii+W]-lumRef[ii-W],gm=Math.hypot(gx,gy);
     let dx,dy;
     if(gm<.6){if(!ldx&&!ldy)break;dx=ldx;dy=ldy}
     else{
@@ -851,29 +853,71 @@ async function makePaintStrokes(outputW,outputH,w,h,pixels){
      if(ldx||ldy){if(ldx*dx+ldy*dy<0){dx=-dx;dy=-dy}dx=fc*dx+(1-fc)*ldx;dy=fc*dy+(1-fc)*ldy;const L=Math.hypot(dx,dy)||1;dx/=L;dy/=L}
     }
     x+=dx*step;y+=dy*step;ldx=dx;ldy=dy;
-    if(x<0||y<0||x>=w||y>=h)break;
+    if(x<0||y<0||x>=W||y>=H)break;
     pts.push(x,y)
    }
    layer.push({pts:Float32Array.from(pts),color:`rgb(${cr|0},${cg|0},${cb|0})`})
   }
   pctx.lineWidth=2*R;
   for(const st of layer){pctx.strokeStyle=st.color;strokePath(pctx,st.pts,1,1)}
-  const ol=await orderPaintLayer(layer,order,w,h);
-  for(const st of ol){
-   const pts=new Float32Array(st.pts.length);
-   for(let k=0;k<pts.length;k+=2){pts[k]=st.pts[k]*sx;pts[k+1]=st.pts[k+1]*sy}
-   ordered.push({pts,length:pathLength(pts),mean:.5,importance:1,baseImportance:1,top:pts[1],shade:false,face:false,paint:true,color:st.color,brush:2*R*sx,seed:(seedBase+ordered.length*2654435761)>>>0})
-  }
-  setAnalysisProgress(15+li*20,`Planning brush layer ${li+1} of 4`);await yieldFrame()
- } if(faceLandmarkPoints){
-  const accent=mode==='color'?'#2a1a14':mode==='gray'?'#141414':'#2b1b10';
-  /*
-  for(const f of makeFaceLandmarkStrokes(faceLandmarkPoints,outputW,outputH)){
-    if(!/^(left|right) (eye|iris)$/.test(f.feature))continue;
-   ordered.push({pts:f.pts,length:f.length,mean:1,importance:1,baseImportance:1,top:f.top,shade:false,face:false,paint:true,color:accent,brush:Math.max(2.5,1.1*sx),seed:f.seed})
-  }
-   */
+  const ol=await orderPaintLayer(layer,order,W,H);
+  for(const st of ol)result.push({pts:st.pts,color:st.color,R});
+  setAnalysisProgress(p0+li*8,`${label} layer ${li+1} of ${radii.length}`);await yieldFrame()
  }
+ return result
+}
+async function makePaintStrokes(outputW,outputH,w,h,pixels){
+ const n=w*h,sx=outputW/w,sy=outputH/h,detail=+$('#detail').value,mode=$('#paintColorMode').value,brushScale=+$('#brushSize').value/100,order=$('#photoOrder').value,faceAmt=+$('#faceFocus').value/100;
+ paintPlan=null;
+ const lum0=new Float32Array(n);
+ for(let i=0;i<n;i++)lum0[i]=.2126*pixels[i*4]+.7152*pixels[i*4+1]+.0722*pixels[i*4+2];
+ const lb=boxBlur(lum0,w,h,1),m=new Float32Array(n);
+ for(let y=1;y<h-1;y++)for(let x=1;x<w-1;x++){const i=y*w+x;m[i]=Math.hypot(lb[i+1]-lb[i-1],lb[i+w]-lb[i-w])}
+ const sharp=boxBlur(boxBlur(m,w,h,10),w,h,10),ss=Float32Array.from(sharp).sort(),sThr=Math.max(.5,ss[Math.floor(n*.5)]),focus=new Float32Array(n);
+ for(let i=0;i<n;i++)focus[i]=clamp((sharp[i]-sThr*.3)/(sThr*.7),0,1);
+ if(faceBox){const x0=Math.max(0,faceBox.x|0),y0=Math.max(0,faceBox.y|0),x1=Math.min(w,Math.ceil(faceBox.x+faceBox.w)),y1=Math.min(h,Math.ceil(faceBox.y+faceBox.h));for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)focus[y*w+x]=1}
+ let tone=null;
+ if(mode!=='color'){const srt=Float32Array.from(lum0).sort(),p2=srt[Math.floor(n*.02)],p98=srt[Math.floor(n*.98)];tone={p98,span:Math.max(20,p98-p2),gamma:100/+$('#toneContrast').value,dk:mode==='gray'?[22,22,24]:[52,32,18]}}
+ const {SR,SG,SB}=makePlanes(pixels,n,mode,focus,tone);
+ await yieldFrame();
+ const baseT=34-detail*.22,capScale=.5+detail/100,ordered=[];
+ const toOut=(st,ox,oy,kx,ky)=>{const pts=new Float32Array(st.pts.length);for(let k=0;k<pts.length;k+=2){pts[k]=ox+st.pts[k]*kx;pts[k+1]=oy+st.pts[k+1]*ky}return{pts,length:pathLength(pts),mean:.5,importance:1,baseImportance:1,top:pts[1],shade:false,face:false,paint:true,color:st.color,brush:2*st.R*kx,seed:(seedBase+ordered.length*2654435761)>>>0}};
+ const pc=document.createElement('canvas');pc.width=w;pc.height=h;
+ const pctx=pc.getContext('2d',{willReadFrequently:true});
+ pctx.fillStyle='#f5f0df';pctx.fillRect(0,0,w,h);
+ const mainStrokes=await paintPass({W:w,H:h,SR,SG,SB,pctx,radii:[11,6,3.4,2].map(r=>Math.max(1,r*brushScale)),baseT,caps:[1500,3500,5000,6000].map(c=>Math.round(c*capScale)),mode,order,tScale:(x,y)=>isInFace(x,y)?.55:1,gate:(li,bi,x,y)=>li<2||isInFace(x,y)||focus[bi]>=(li===2?.25:.55),label:'Brush',p0:10});
+ for(const st of mainStrokes)ordered.push(toOut(st,0,0,sx,sy));
+ const mainEnd=ordered.length;
+ let roiRect=null;
+ if(faceBox&&faceAmt>0){
+  const fx=faceBox.x*sx,fy=faceBox.y*sy,fw=faceBox.w*sx,fh=faceBox.h*sy,mx=fw*.4,my=fh*.4;
+  const cx0=Math.max(0,Math.floor(fx-mx)),cy0=Math.max(0,Math.floor(fy-my)),cx1=Math.min(outputW,Math.ceil(fx+fw+mx)),cy1=Math.min(outputH,Math.ceil(fy+fh+my)),cw=cx1-cx0,ch=cy1-cy0;
+  if(cw>16&&ch>16){
+   const k=Math.min(1,720/Math.max(cw,ch)),dw=Math.max(8,Math.round(cw*k)),dh=Math.max(8,Math.round(ch*k)),rn=dw*dh;
+   const tmp=document.createElement('canvas');tmp.width=dw;tmp.height=dh;
+   const tctx=tmp.getContext('2d',{willReadFrequently:true});
+   tctx.fillStyle='#fff';tctx.fillRect(0,0,dw,dh);tctx.drawImage(sourceOriginalCanvas,cx0,cy0,cw,ch,0,0,dw,dh);
+   const rgba=tctx.getImageData(0,0,dw,dh).data,rfocus=new Float32Array(rn);
+   for(let y=0;y<dh;y++){const ay=Math.min(h-1,((cy0+y/k)/sy)|0);for(let x=0;x<dw;x++)rfocus[y*dw+x]=focus[ay*w+Math.min(w-1,((cx0+x/k)/sx)|0)]}
+   const rp=makePlanes(rgba,rn,mode,rfocus,tone);
+   const rc=document.createElement('canvas');rc.width=dw;rc.height=dh;
+   const rctx=rc.getContext('2d',{willReadFrequently:true});
+   rctx.imageSmoothingEnabled=true;rctx.imageSmoothingQuality='high';
+   rctx.fillStyle='#f5f0df';rctx.fillRect(0,0,dw,dh);
+   rctx.drawImage(pc,cx0/sx,cy0/sy,cw/sx,ch/sy,0,0,dw,dh);
+   const faceStrokes=await paintPass({W:dw,H:dh,SR:rp.SR,SG:rp.SG,SB:rp.SB,pctx:rctx,radii:[3.2,2,1.3,.9].map(r=>Math.max(.7,r*Math.sqrt(brushScale))),baseT:baseT*(1.15-.6*faceAmt),caps:[900,1800,2600,3200].map(c=>Math.round(c*capScale*(.4+faceAmt))),mode,order,tScale:()=>1,gate:()=>true,label:'Face',p0:55});
+   for(const st of faceStrokes)ordered.push(toOut(st,cx0,cy0,1/k,1/k));
+   roiRect={x:cx0,y:cy0,w:cw,h:ch}
+  }
+ }
+ if(faceLandmarkPoints){
+  const accent=mode==='color'?'#2a1a14':mode==='gray'?'#141414':'#2b1b10';
+  /*for(const f of makeFaceLandmarkStrokes(faceLandmarkPoints,outputW,outputH)){
+   if(!/^(left|right) (eye|iris)$/.test(f.feature))continue;
+   ordered.push({pts:f.pts,length:f.length,mean:1,importance:1,baseImportance:1,top:f.top,shade:false,face:false,paint:true,color:accent,brush:Math.max(2.5,1.1*sx),seed:f.seed})
+  } */
+ }
+ if(roiRect)paintPlan={mainEnd,roiEnd:ordered.length,roi:roiRect};
  return ordered
 }
 async function analyze(){
